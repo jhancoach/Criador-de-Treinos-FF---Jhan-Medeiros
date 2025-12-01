@@ -31,7 +31,7 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = {
     hasError: false,
     error: null
@@ -257,7 +257,7 @@ function MainApp() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `JhanTraining_${trainingName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.json`;
+    link.download = `CriadorDeTreino_${trainingName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -390,7 +390,7 @@ function MainApp() {
         <Crown size={80} className="text-primary relative z-10 animate-bounce-slow" />
       </div>
       <h1 className="text-5xl md:text-7xl font-display font-black mb-6 tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-500">
-        Jhan<span className="text-primary">Training</span>
+        Criador de <span className="text-primary">Treino</span>
       </h1>
       <p className="text-xl text-muted max-w-2xl mb-12 leading-relaxed">
         A plataforma definitiva para organizar seus treinos.
@@ -720,7 +720,7 @@ function MainApp() {
             
             text += `${medal} ${team.teamName}: ${team.totalPoints}pts (${team.booyahs} Booyahs)\n`;
         });
-        text += `\nGerado por JhanTraining`;
+        text += `\nGerado por Criador de Treino`;
         return text;
     }, [leaderboard, trainingName]);
 
@@ -861,7 +861,7 @@ function MainApp() {
               <div className="mb-6 w-full border-b border-primary/30 pb-4">
                  <div className="flex items-center justify-center gap-2 mb-2">
                     <Crown className="text-primary fill-primary" size={24}/>
-                    <span className="font-bold text-primary tracking-widest text-sm uppercase">JhanTraining</span>
+                    <span className="font-bold text-primary tracking-widest text-sm uppercase">Criador de Treino</span>
                  </div>
                  <h2 className="text-2xl font-black text-white uppercase leading-none mb-1">{trainingName}</h2>
                  <p className="text-xs text-gray-400 font-mono">{new Date().toLocaleDateString()}</p>
@@ -915,7 +915,7 @@ function MainApp() {
               </div>
 
               <div className="mt-6 text-[10px] text-gray-600 font-mono flex items-center gap-1">
-                 Gerado por JhanTraining <Flame size={10} className="text-primary"/>
+                 Gerado por Criador de Treino <Flame size={10} className="text-primary"/>
               </div>
            </div>
         </div>
@@ -1260,7 +1260,7 @@ function MainApp() {
       {/* Persistent Footer */}
       <footer className="w-full py-6 text-center text-muted text-xs border-t border-theme mt-auto bg-panel/50 backdrop-blur-sm">
         <div className="flex flex-col items-center gap-2">
-          <span className="font-semibold">Free Fire Criador de Treinos • {new Date().getFullYear()}</span>
+          <span className="font-semibold">Criador de Treino • {new Date().getFullYear()}</span>
           <a 
             href="https://www.instagram.com/jhanmedeiros/" 
             target="_blank" 
