@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, Trophy, Map, Crown, AlertTriangle, ArrowRight, ArrowLeft, Home, Download, RefreshCw, BarChart2, Save, Trash2, Edit2, Play, LayoutGrid, HelpCircle, X, Info, FileText, Instagram, Eye, Check, Palette, MonitorPlay, Moon, Sun, Medal, Target, Flame } from 'lucide-react';
+import { Users, Trophy, Crown, AlertTriangle, ArrowRight, ArrowLeft, Home, Download, RefreshCw, BarChart2, Save, Trash2, Edit2, Play, LayoutGrid, HelpCircle, X, Info, FileText, Instagram, Eye, Check, Palette, MonitorPlay, Moon, Sun, Medal, Target, Flame } from 'lucide-react';
 import { Team, TrainingMode, Step, MapData, MatchScore, ProcessedScore, Position, POINTS_SYSTEM } from './types';
 import { MAPS, WARNINGS } from './constants';
 import { Button } from './components/Button';
@@ -303,7 +303,6 @@ function App() {
                        <td className="p-3 font-semibold text-main border-r border-theme bg-panel">{team.name}</td>
                        {currentMapOrder.map(mapId => {
                          const currentSelection = basicSelections[mapId]?.[team.id] || "-";
-                         // Check conflict logic again for display
                          const isConflict = Object.entries(basicSelections[mapId] || {}).some(
                            ([tId, city]) => tId !== team.id && city === currentSelection && city !== "" && city !== "-"
                          );
