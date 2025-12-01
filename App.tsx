@@ -23,7 +23,7 @@ const TEAM_COLORS = [
 
 // Error Boundary Component
 interface ErrorBoundaryProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 interface ErrorBoundaryState {
@@ -32,7 +32,10 @@ interface ErrorBoundaryState {
 }
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState = { hasError: false, error: null };
+  public state: ErrorBoundaryState = {
+    hasError: false,
+    error: null
+  };
 
   constructor(props: ErrorBoundaryProps) {
     super(props);
@@ -50,15 +53,17 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white p-6 text-center">
-          <AlertTriangle size={48} className="text-red-500 mb-4" />
+          <div className="text-red-500 mb-4">
+            <AlertTriangle size={48} />
+          </div>
           <h1 className="text-2xl font-bold mb-2">Ops! Algo deu errado.</h1>
           <p className="text-gray-400 mb-4 max-w-md">Ocorreu um erro inesperado na aplicação. Tente recarregar a página.</p>
-          <div className="bg-gray-900 p-4 rounded text-left overflow-auto max-w-full text-xs font-mono text-red-300 border border-red-900">
+          <div className="bg-gray-900 p-4 rounded text-left overflow-auto max-w-full text-xs font-mono text-red-300 border border-red-900 mb-4">
             {this.state.error?.message}
           </div>
           <button 
             onClick={() => window.location.reload()} 
-            className="mt-6 px-6 py-2 bg-primary text-black font-bold rounded hover:opacity-90 transition"
+            className="px-6 py-2 bg-yellow-500 text-black font-bold rounded hover:opacity-90 transition"
           >
             Recarregar Página
           </button>
@@ -736,8 +741,12 @@ function MainApp() {
                     className="absolute top-4 right-4" 
                     size="sm"
                     onClick={() => {
-                        navigator.clipboard.writeText(textReport);
-                        alert("Copiado para área de transferência!");
+                        try {
+                           navigator.clipboard.writeText(textReport);
+                           alert("Copiado para área de transferência!");
+                        } catch (e) {
+                           alert("Erro ao copiar. Selecione o texto manualmente.");
+                        }
                     }}
                 >
                     <Check size={16}/> COPIAR

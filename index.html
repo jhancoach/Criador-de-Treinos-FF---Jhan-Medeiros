@@ -18,6 +18,16 @@
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
               display: ['Poppins', 'sans-serif'],
+            },
+            animation: {
+              'bounce-slow': 'bounce 3s infinite',
+              'fade-in': 'fadeIn 0.5s ease-out forwards',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              }
             }
           }
         }
@@ -51,6 +61,7 @@
         background-color: var(--bg-body);
         color: var(--text-main);
         transition: background-color 0.3s, color 0.3s;
+        min-height: 100vh;
       }
 
       /* Dynamic Utility Classes */
@@ -96,6 +107,22 @@
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
         }
+      }
+      
+      /* Animation Classes manually added as backup */
+      .animate-fade-in {
+        animation: fadeIn 0.5s ease-out forwards;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-bounce-slow {
+        animation: bounce 3s infinite;
+      }
+      @keyframes bounce {
+        0%, 100% { transform: translateY(-5%); animation-timing-function: cubic-bezier(0.8, 0, 1, 1); }
+        50% { transform: translateY(0); animation-timing-function: cubic-bezier(0, 0, 0.2, 1); }
       }
     </style>
   <script type="importmap">
