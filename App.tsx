@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Users, Trophy, Crown, AlertTriangle, ArrowRight, ArrowLeft, Home, Download, RefreshCw, BarChart2, Save, Trash2, Edit2, Play, LayoutGrid, HelpCircle, X, Info, FileText, Instagram, Eye, Check, Palette, MonitorPlay, Moon, Sun, Medal, Target, Flame } from 'lucide-react';
+import React, { useState, useEffect, useMemo, ErrorInfo } from 'react';
+import { Users, Trophy, Crown, AlertTriangle, ArrowRight, ArrowLeft, Home, Download, RefreshCw, BarChart2, Save, Trash2, Edit2, Play, LayoutGrid, HelpCircle, X, Info, FileText, Instagram, Eye, Check, Palette, Monitor, Moon, Sun, Medal, Target, Flame, Share2, Calendar } from 'lucide-react';
 import { Team, TrainingMode, Step, MapData, MatchScore, ProcessedScore, Position, POINTS_SYSTEM } from './types';
 import { MAPS, WARNINGS } from './constants';
 import { Button } from './components/Button';
@@ -15,12 +15,61 @@ const THEMES = [
   { name: 'Purple', color: '168 85 247', hex: '#A855F7' },
 ];
 
-function App() {
+// Error Boundary Component to prevent white/black screen
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("Uncaught error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white p-6 text-center">
+          <AlertTriangle size={48} className="text-red-500 mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Ops! Algo deu errado.</h1>
+          <p className="text-gray-400 mb-4 max-w-md">Ocorreu um erro inesperado na aplicação. Tente recarregar a página.</p>
+          <div className="bg-gray-900 p-4 rounded text-left overflow-auto max-w-full text-xs font-mono text-red-300 border border-red-900">
+            {this.state.error?.message}
+          </div>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-6 px-6 py-2 bg-primary text-black font-bold rounded hover:opacity-90 transition"
+          >
+            Recarregar Página
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+function MainApp() {
   // --- State ---
   const [step, setStep] = useState<Step>(Step.HOME);
   const [mode, setMode] = useState<TrainingMode>('basic');
   const [teams, setTeams] = useState<Team[]>([]);
   const [newTeamName, setNewTeamName] = useState('');
+  const [trainingName, setTrainingName] = useState('Treino Competitivo'); // New State
   const [activeTheme, setActiveTheme] = useState(THEMES[0]);
   const [isDarkMode, setIsDarkMode] = useState(true);
   
@@ -28,6 +77,7 @@ function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [teamToDelete, setTeamToDelete] = useState<string | null>(null);
   const [showStrategyVisualizer, setShowStrategyVisualizer] = useState(false);
+  const [showSocialBanner, setShowSocialBanner] = useState(false); // New State
   
   // Strategy State
   const [shuffledMaps, setShuffledMaps] = useState<string[]>([]);
@@ -340,6 +390,87 @@ function App() {
     );
   };
 
+  const renderSocialBanner = () => {
+    if (!showSocialBanner) return null;
+    const sortedLeaderboard = leaderboard;
+    const champion = sortedLeaderboard[0];
+    const secondPlace = sortedLeaderboard[1];
+    const thirdPlace = sortedLeaderboard[2];
+    const others = sortedLeaderboard.slice(3);
+
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-lg animate-fade-in overflow-y-auto">
+        <div className="relative w-full max-w-[500px] bg-black border-2 border-primary rounded-xl overflow-hidden shadow-[0_0_50px_rgba(var(--color-primary),0.3)]">
+           <button onClick={() => setShowSocialBanner(false)} className="absolute top-4 right-4 z-10 bg-black/50 p-2 rounded-full text-white hover:bg-white hover:text-black transition-colors"><X size={20}/></button>
+           
+           {/* Banner Content Container - Designed for Screenshot */}
+           <div className="bg-gradient-to-b from-gray-900 to-black p-6 md:p-8 text-center flex flex-col items-center">
+              {/* Header */}
+              <div className="mb-6 w-full border-b border-primary/30 pb-4">
+                 <div className="flex items-center justify-center gap-2 mb-2">
+                    <Crown className="text-primary fill-primary" size={24}/>
+                    <span className="font-bold text-primary tracking-widest text-sm uppercase">JhanTraining</span>
+                 </div>
+                 <h2 className="text-2xl font-black text-white uppercase leading-none mb-1">{trainingName}</h2>
+                 <p className="text-xs text-gray-400 font-mono">{new Date().toLocaleDateString()}</p>
+              </div>
+
+              {/* Podium */}
+              <div className="flex items-end justify-center gap-2 mb-6 w-full">
+                 {/* 2nd */}
+                 <div className="flex flex-col items-center w-1/3">
+                    <div className="mb-1 text-[10px] font-bold text-gray-400">2º LUGAR</div>
+                    <div className="w-full bg-gradient-to-t from-gray-700 to-gray-600 rounded-t-lg h-24 flex flex-col justify-end pb-2 relative border-t-2 border-gray-400">
+                       <span className="text-white font-bold text-sm leading-tight px-1 truncate w-full">{secondPlace?.teamName || '-'}</span>
+                       <span className="text-xs text-gray-300">{secondPlace?.totalPoints || 0} pts</span>
+                    </div>
+                 </div>
+                 {/* 1st */}
+                 <div className="flex flex-col items-center w-1/3 -mt-4">
+                    <Crown size={20} className="text-primary mb-1 animate-bounce"/>
+                    <div className="w-full bg-gradient-to-t from-primary/80 to-primary rounded-t-lg h-32 flex flex-col justify-end pb-3 relative border-t-2 border-yellow-200 shadow-[0_0_20px_rgba(var(--color-primary),0.4)]">
+                       <span className="text-black font-black text-lg leading-tight px-1 truncate w-full">{champion?.teamName || '-'}</span>
+                       <span className="text-sm font-bold text-black/70">{champion?.totalPoints || 0} pts</span>
+                       <div className="text-[10px] font-bold text-black/60 mt-1">{champion?.booyahs || 0} Booyahs</div>
+                    </div>
+                 </div>
+                 {/* 3rd */}
+                 <div className="flex flex-col items-center w-1/3">
+                    <div className="mb-1 text-[10px] font-bold text-orange-400">3º LUGAR</div>
+                    <div className="w-full bg-gradient-to-t from-orange-800 to-orange-700 rounded-t-lg h-20 flex flex-col justify-end pb-2 relative border-t-2 border-orange-500">
+                       <span className="text-white font-bold text-sm leading-tight px-1 truncate w-full">{thirdPlace?.teamName || '-'}</span>
+                       <span className="text-xs text-orange-200">{thirdPlace?.totalPoints || 0} pts</span>
+                    </div>
+                 </div>
+              </div>
+
+              {/* List */}
+              <div className="w-full bg-gray-900/50 rounded-lg border border-gray-800 p-3">
+                 <div className="grid grid-cols-[20px_1fr_40px] gap-2 text-[10px] font-bold text-gray-500 uppercase mb-2 border-b border-gray-800 pb-1">
+                    <div>#</div><div className="text-left">Time</div><div>Pts</div>
+                 </div>
+                 <div className="space-y-1.5">
+                    {others.length === 0 ? <div className="text-xs text-gray-600 py-2">Sem mais times</div> : 
+                      others.map((team, idx) => (
+                        <div key={team.teamId} className="grid grid-cols-[20px_1fr_40px] gap-2 text-xs items-center">
+                           <div className="font-mono text-gray-500">{idx + 4}</div>
+                           <div className="text-left text-gray-200 font-medium truncate">{team.teamName}</div>
+                           <div className="text-primary font-bold">{team.totalPoints}</div>
+                        </div>
+                      ))
+                    }
+                 </div>
+              </div>
+
+              <div className="mt-6 text-[10px] text-gray-600 font-mono flex items-center gap-1">
+                 Gerado por JhanTraining <Flame size={10} className="text-primary"/>
+              </div>
+           </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderHelpModal = () => (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
       <div className="bg-panel w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl border border-theme shadow-theme relative flex flex-col">
@@ -436,7 +567,7 @@ function App() {
       <div className="flex-1 flex flex-col bg-background p-4 animate-fade-in">
         <div className="flex justify-between items-center mb-6 bg-panel p-4 rounded-xl border border-theme">
            <h2 className="text-2xl font-bold text-primary flex items-center gap-3">
-             <MonitorPlay size={24} /> DASHBOARD EM TEMPO REAL
+             <Monitor size={24} /> DASHBOARD EM TEMPO REAL
            </h2>
            <div className="flex gap-2">
               <div className="flex bg-background rounded-lg p-1 border border-theme">
@@ -571,9 +702,23 @@ function App() {
 
   const renderTeamRegister = () => (
     <div className="flex-1 w-full p-6 max-w-4xl mx-auto flex flex-col">
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-3xl font-display font-bold text-main">CADASTRO DE TIMES <span className="text-primary text-lg ml-2">({teams.length}/15)</span></h2>
-        <div className="text-muted text-sm">Modo: <span className="uppercase text-main font-bold">{mode}</span></div>
+      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <div>
+           <h2 className="text-3xl font-display font-bold text-main">CADASTRO DE TIMES <span className="text-primary text-lg ml-2">({teams.length}/15)</span></h2>
+           <div className="text-muted text-sm mt-1">Nome do Treino:</div>
+        </div>
+        
+        {/* Input para Nome do Treino */}
+        <div className="flex items-center gap-2 bg-panel border-b-2 border-primary px-3 py-2 w-full md:w-auto">
+           <Edit2 size={16} className="text-primary"/>
+           <input 
+             type="text" 
+             value={trainingName} 
+             onChange={(e) => setTrainingName(e.target.value)}
+             className="bg-transparent border-none text-xl font-bold text-main focus:outline-none placeholder-gray-600 w-full"
+             placeholder="Nome do Evento/Treino"
+           />
+        </div>
       </div>
 
       <div className="flex gap-4 mb-8">
@@ -741,7 +886,7 @@ function App() {
             <h2 className="text-3xl font-display font-bold text-main">REGISTRO DE PONTUAÇÃO</h2>
             <div className="flex gap-2">
               <Button variant="secondary" onClick={() => setStep(Step.DASHBOARD)}>
-                 <MonitorPlay size={18} /> MODO ESPECTADOR
+                 <Monitor size={18} /> MODO ESPECTADOR
               </Button>
               <Button onClick={() => setStep(Step.REPORT)}>FINALIZAR E VER RELATÓRIO <Trophy size={18} /></Button>
             </div>
@@ -797,9 +942,12 @@ function App() {
           <div className="flex flex-col md:flex-row justify-between items-end border-b border-theme pb-6 gap-4">
             <div>
               <h1 className="text-4xl font-display font-bold text-main mb-2 tracking-tight">RELATÓRIO <span className="text-primary">FINAL</span></h1>
-              <p className="text-muted">Análise completa e resultados do treino.</p>
+              <p className="text-muted">Análise completa e resultados do treino: <span className="text-primary font-bold">{trainingName}</span></p>
             </div>
-            <Button variant="secondary" onClick={() => window.print()}><Download size={18} /> SALVAR PDF</Button>
+            <div className="flex gap-2">
+               <Button onClick={() => setShowSocialBanner(true)} className="bg-gradient-to-r from-purple-600 to-pink-600 border-none text-white shadow-lg hover:opacity-90"><Instagram size={18}/> GERAR BANNER SOCIAL</Button>
+               <Button variant="secondary" onClick={() => window.print()}><Download size={18} /> SALVAR PDF</Button>
+            </div>
           </div>
 
           {/* Podium Section */}
@@ -916,7 +1064,8 @@ function App() {
               {/* Mini Chart */}
               <div className="bg-panel p-6 rounded-xl border border-theme h-64 flex flex-col">
                 <h3 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">Pontuação Top 5</h3>
-                <div className="flex-1 -ml-4">
+                <div className="flex-1 -ml-4" style={{minHeight: '200px'}}>
+                  {/* Fixed height to prevent collapse */}
                   <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={sortedLeaderboard.slice(0, 5)} layout="vertical">
                         <XAxis type="number" hide />
@@ -997,6 +1146,7 @@ function App() {
       {showHelp && renderHelpModal()}
       {renderDeleteModal()}
       {renderVisualizerModal()}
+      {renderSocialBanner()}
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col pt-24 px-4 md:px-0">
@@ -1025,6 +1175,15 @@ function App() {
         </div>
       </footer>
     </div>
+  );
+}
+
+// Main App component wrapper with Error Boundary
+function App() {
+  return (
+    <ErrorBoundary>
+      <MainApp />
+    </ErrorBoundary>
   );
 }
 
