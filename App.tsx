@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, ErrorInfo, useRef, Component } from 'react';
+import React, { useState, useEffect, useMemo, ErrorInfo, useRef } from 'react';
 import { Users, Trophy, Crown, AlertTriangle, ArrowRight, ArrowLeft, Home, Download, RefreshCw, BarChart2, Save, Trash2, Edit2, Play, LayoutGrid, HelpCircle, X, Info, FileText, Instagram, Eye, Check, Palette, Monitor, Moon, Sun, Medal, Target, Flame, Share2, Calendar, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Team, TrainingMode, Step, MapData, MatchScore, ProcessedScore, Position, POINTS_SYSTEM } from './types';
 import { MAPS, WARNINGS } from './constants';
@@ -31,7 +31,7 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = {
     hasError: false,
     error: null
@@ -70,6 +70,13 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     return this.props.children;
   }
 }
+
+class ErrorBoundaryWrapper extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+    render() {
+        return <ErrorBoundary>{this.props.children}</ErrorBoundary>
+    }
+}
+
 
 function MainApp() {
   // --- State ---
@@ -649,7 +656,9 @@ function MainApp() {
                               </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-800/30">
-                              {leaderboard.map((team, idx) => (
+                              {leaderboard.map((team, idx) => {
+                                  const teamColor = teams.find(t => t.id === team.teamId)?.color || '#fff';
+                                  return (
                                   <tr key={team.teamId} className={`
                                       ${idx === 0 ? 'bg-yellow-500/10' : ''} 
                                       ${idx === 1 ? 'bg-gray-400/10' : ''}
@@ -660,12 +669,17 @@ function MainApp() {
                                           {idx === 0 && <Crown size={14} className="inline text-yellow-500 mb-1"/>}
                                           {idx + 1}
                                       </td>
-                                      <td className="p-3 font-medium text-main">{team.teamName}</td>
+                                      <td className="p-3 font-medium text-main">
+                                          <div className="flex items-center gap-2">
+                                              <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: teamColor }}></div>
+                                              {team.teamName}
+                                          </div>
+                                      </td>
                                       <td className="p-3 text-center text-muted">{team.booyahs}</td>
                                       <td className="p-3 text-center text-muted">{team.totalKills}</td>
                                       <td className="p-3 text-center font-bold text-primary text-lg">{team.totalPoints}</td>
                                   </tr>
-                              ))}
+                              )})}
                           </tbody>
                       </table>
                   </div>
@@ -678,11 +692,16 @@ function MainApp() {
                     <h4 className="text-muted text-xs uppercase font-bold mb-4">TIME MAIS AGRESSIVO</h4>
                     {(() => {
                         const topKiller = [...leaderboard].sort((a,b) => b.totalKills - a.totalKills)[0];
+                        const topKillerTeam = topKiller ? teams.find(t => t.id === topKiller.teamId) : null;
+                        
                         return topKiller ? (
                              <div className="text-center">
                                  <div className="text-4xl font-black text-red-500 mb-1">{topKiller.totalKills}</div>
                                  <div className="text-sm text-muted uppercase tracking-widest">KILLS TOTAIS</div>
-                                 <div className="mt-4 font-bold text-xl text-main">{topKiller.teamName}</div>
+                                 <div className="mt-4 font-bold text-xl text-main flex items-center justify-center gap-2">
+                                     {topKillerTeam && <div className="w-4 h-4 rounded-full" style={{ backgroundColor: topKillerTeam.color }}></div>}
+                                     {topKiller.teamName}
+                                 </div>
                              </div>
                         ) : <div className="text-center text-muted">Sem dados</div>
                     })()}
@@ -698,7 +717,12 @@ function MainApp() {
                                 contentStyle={{backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px'}}
                                 cursor={{fill: 'rgba(255,255,255,0.05)'}}
                              />
-                             <Bar dataKey="totalPoints" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+                             <Bar dataKey="totalPoints" radius={[4, 4, 0, 0]}>
+                                 {leaderboard.slice(0,5).map((entry, index) => {
+                                     const tColor = teams.find(t => t.id === entry.teamId)?.color || 'var(--color-primary)';
+                                     return <Cell key={`cell-${index}`} fill={tColor} />;
+                                 })}
+                             </Bar>
                          </BarChart>
                      </ResponsiveContainer>
                  </div>
@@ -802,11 +826,16 @@ function MainApp() {
                  <tbody className="divide-y divide-gray-800/20">
                    {teams.map(team => (
                      <tr key={team.id} className="hover:bg-primary/5">
-                       <td className="p-3 font-semibold text-main border-r border-theme bg-panel">{team.name}</td>
+                       <td className="p-3 font-semibold text-main border-r border-theme bg-panel">
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full shrink-0" style={{backgroundColor: team.color}}></div>
+                                {team.name}
+                            </div>
+                       </td>
                        {currentMapOrder.map(mapId => {
                          const currentSelection = basicSelections[mapId]?.[team.id] || "-";
                          const isConflict = Object.entries(basicSelections[mapId] || {}).some(
-                           ([tId, city]) => tId !== team.id && city === currentSelection && city !== "" && city !== "-"
+                           ([tId, city]) => tId !== team.id && city === currentSelection && city !== "-" && city !== ""
                          );
                          return (
                            <td key={mapId} className={`p-3 border-r border-theme ${isConflict ? 'text-red-500 font-bold bg-red-500/10' : 'text-muted'}`}>
@@ -1001,15 +1030,26 @@ function MainApp() {
                   {/* Color Picker / Display */}
                   <div className="relative group/color">
                       <div className="w-6 h-6 rounded-full cursor-pointer shadow-sm border border-white/20" style={{ backgroundColor: team.color }}></div>
-                      <div className="absolute top-full left-0 z-20 hidden group-hover/color:grid grid-cols-5 gap-1 bg-panel border border-theme p-2 rounded-lg shadow-xl w-[140px]">
-                          {TEAM_COLORS.map(c => (
-                              <button 
-                                key={c} 
-                                className="w-5 h-5 rounded-full border border-white/10 hover:scale-110 transition-transform" 
-                                style={{backgroundColor: c}}
-                                onClick={() => updateTeamColor(team.id, c)}
-                              />
-                          ))}
+                      <div className="absolute top-full left-0 z-20 hidden group-hover/color:flex flex-col gap-2 bg-panel border border-theme p-2 rounded-lg shadow-xl w-[160px]">
+                          <div className="grid grid-cols-5 gap-1">
+                            {TEAM_COLORS.map(c => (
+                                <button 
+                                    key={c} 
+                                    className="w-5 h-5 rounded-full border border-white/10 hover:scale-110 transition-transform" 
+                                    style={{backgroundColor: c}}
+                                    onClick={() => updateTeamColor(team.id, c)}
+                                />
+                            ))}
+                          </div>
+                          <div className="relative h-8 rounded border border-theme overflow-hidden flex items-center justify-center bg-background cursor-pointer hover:bg-white/5 transition-colors">
+                            <span className="text-[10px] text-muted font-bold uppercase pointer-events-none">Cor Personalizada</span>
+                            <input 
+                                type="color" 
+                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                value={team.color}
+                                onChange={(e) => updateTeamColor(team.id, e.target.value)}
+                            />
+                          </div>
                       </div>
                   </div>
                   
@@ -1087,7 +1127,12 @@ function MainApp() {
                <tbody className="divide-y divide-gray-800/20">
                  {teams.map(team => (
                    <tr key={team.id} className="hover:bg-primary/5 transition-colors">
-                     <td className="p-3 sticky left-0 bg-panel font-semibold text-main border-r border-theme z-10">{team.name}</td>
+                     <td className="p-3 sticky left-0 bg-panel border-r border-theme z-10">
+                        <div className="flex items-center gap-2 font-semibold text-main">
+                            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: team.color }}></div>
+                            {team.name}
+                        </div>
+                     </td>
                      {currentMapOrder.map(mapId => {
                        const mapData = MAPS.find(m => m.id === mapId);
                        const currentSelection = basicSelections[mapId]?.[team.id] || "";
