@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, ErrorInfo, useRef } from 'react';
+import React, { Component, useState, useEffect, useMemo, ErrorInfo, useRef } from 'react';
 import { Users, Trophy, Crown, AlertTriangle, ArrowRight, ArrowLeft, Home, Download, RefreshCw, BarChart2, Save, Trash2, Edit2, Play, LayoutGrid, HelpCircle, X, Info, FileText, Instagram, Eye, Check, Palette, Monitor, Moon, Sun, Medal, Target, Flame, Share2, Calendar, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Team, TrainingMode, Step, MapData, MatchScore, ProcessedScore, Position, POINTS_SYSTEM } from './types';
 import { MAPS, WARNINGS } from './constants';
@@ -32,10 +32,13 @@ interface ErrorBoundaryState {
 }
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = {
-    hasError: false,
-    error: null
-  };
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null
+    };
+  }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
@@ -70,13 +73,6 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     return this.props.children;
   }
 }
-
-class ErrorBoundaryWrapper extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-    render() {
-        return <ErrorBoundary>{this.props.children}</ErrorBoundary>
-    }
-}
-
 
 function MainApp() {
   // --- State ---
@@ -131,7 +127,7 @@ function MainApp() {
       case Step.TEAM_REGISTER: setStep(Step.MODE_SELECT); break;
       case Step.MAP_SORT: setStep(Step.TEAM_REGISTER); break;
       case Step.STRATEGY: setStep(Step.MAP_SORT); break;
-      case Step.SCORING: setStep(Step.STRATEGY); break;
+      case Step.SCORING: setStep(Step.SCORING); break;
       case Step.REPORT: setStep(Step.SCORING); break;
       case Step.DASHBOARD: setStep(Step.SCORING); break;
       default: break;
@@ -284,7 +280,7 @@ function MainApp() {
               const json = JSON.parse(e.target?.result as string);
               
               if(json.teams) setTeams(json.teams);
-              if(json.trainingName) setTrainingName(json.trainingName);
+              if(json.trainingName !== undefined) setTrainingName(json.trainingName || '');
               if(json.mode) setMode(json.mode);
               if(json.shuffledMaps) setShuffledMaps(json.shuffledMaps);
               if(json.basicSelections) setBasicSelections(json.basicSelections);
@@ -733,19 +729,31 @@ function MainApp() {
 
   const renderReport = () => {
     const textReport = useMemo(() => {
-        let text = `*${trainingName.toUpperCase()}* - ${new Date().toLocaleDateString()}\n\n`;
-        text += `*CLASSIFICAÇÃO GERAL*\n`;
-        leaderboard.forEach((team, idx) => {
-            let medal = '';
-            if(idx === 0) medal = '🥇';
-            else if(idx === 1) medal = '🥈';
-            else if(idx === 2) medal = '🥉';
-            else medal = `${idx+1}º`;
+        try {
+            const safeTrainingName = (trainingName || 'Treino').toUpperCase();
+            let text = `*${safeTrainingName}* - ${new Date().toLocaleDateString()}\n\n`;
+            text += `*CLASSIFICAÇÃO GERAL*\n`;
             
-            text += `${medal} ${team.teamName}: ${team.totalPoints}pts (${team.booyahs} Booyahs)\n`;
-        });
-        text += `\nGerado por Criador de Treino`;
-        return text;
+            if (leaderboard && leaderboard.length > 0) {
+                leaderboard.forEach((team, idx) => {
+                    let medal = '';
+                    if(idx === 0) medal = '🥇';
+                    else if(idx === 1) medal = '🥈';
+                    else if(idx === 2) medal = '🥉';
+                    else medal = `${idx+1}º`;
+                    
+                    text += `${medal} ${team.teamName}: ${team.totalPoints}pts (${team.booyahs} Booyahs)\n`;
+                });
+            } else {
+                text += "Nenhum dado disponível.\n";
+            }
+
+            text += `\nGerado por Criador de Treino`;
+            return text;
+        } catch (err) {
+            console.error("Error generating report text:", err);
+            return "Erro ao gerar relatório.";
+        }
     }, [leaderboard, trainingName]);
 
     return (
@@ -761,12 +769,9 @@ function MainApp() {
                     className="absolute top-4 right-4" 
                     size="sm"
                     onClick={() => {
-                        try {
-                           navigator.clipboard.writeText(textReport);
-                           alert("Copiado para área de transferência!");
-                        } catch (e) {
-                           alert("Erro ao copiar. Selecione o texto manualmente.");
-                        }
+                        navigator.clipboard.writeText(textReport)
+                            .then(() => alert("Copiado para área de transferência!"))
+                            .catch(() => alert("Erro ao copiar. Selecione o texto manualmente."));
                     }}
                 >
                     <Check size={16}/> COPIAR
@@ -1173,8 +1178,8 @@ function MainApp() {
                         image={mapData.image}
                         teams={teams}
                         positions={premiumPositions[mapId] || {}}
-                        onPositionChange={() => {}}
-                        readOnly={true}
+                        onPositionChange={(tId, pos) => handlePremiumPosition(mapId, tId, pos)}
+                        readOnly={false}
                     />
                     </div>
                 );
