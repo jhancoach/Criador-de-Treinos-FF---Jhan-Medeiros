@@ -3,6 +3,7 @@ export type TrainingMode = 'basic' | 'premium';
 export interface Team {
   id: string;
   name: string;
+  color: string;
 }
 
 export interface MapData {
