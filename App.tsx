@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, ErrorInfo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, ErrorInfo, useRef, Component } from 'react';
 import { Users, Trophy, Crown, AlertTriangle, ArrowRight, ArrowLeft, Home, Download, RefreshCw, BarChart2, Save, Trash2, Edit2, Play, LayoutGrid, HelpCircle, X, Info, FileText, Instagram, Eye, Check, Palette, Monitor, Moon, Sun, Medal, Target, Flame, Share2, Calendar, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Team, TrainingMode, Step, MapData, MatchScore, ProcessedScore, Position, POINTS_SYSTEM } from './types';
 import { MAPS, WARNINGS } from './constants';
@@ -31,15 +31,11 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   public state: ErrorBoundaryState = {
     hasError: false,
     error: null
   };
-
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-  }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
@@ -57,7 +53,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
             <AlertTriangle size={48} />
           </div>
           <h1 className="text-2xl font-bold mb-2">Ops! Algo deu errado.</h1>
-          <p className="text-gray-400 mb-4 max-w-md">Ocorreu um erro inesperado na aplicação. Tente recarregar a página.</p>
+          <p className="text-gray-400 mb-4 max-w-md">Ocorreu um erro inesperado na aplicação.</p>
           <div className="bg-gray-900 p-4 rounded text-left overflow-auto max-w-full text-xs font-mono text-red-300 border border-red-900 mb-4">
             {this.state.error?.message}
           </div>
@@ -388,7 +384,7 @@ function MainApp() {
   // --- Render Functions ---
 
   const renderHome = () => (
-    <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-6 animate-fade-in">
+    <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-6">
       <div className="mb-8 relative">
         <div className="absolute inset-0 bg-primary blur-[100px] opacity-20 rounded-full"></div>
         <Crown size={80} className="text-primary relative z-10 animate-bounce-slow" />
