@@ -1,5 +1,5 @@
 import React, { Component, useState, useEffect, useMemo, ErrorInfo, useRef } from 'react';
-import { Users, Trophy, Crown, AlertTriangle, ArrowRight, ArrowLeft, Home, Download, RefreshCw, BarChart2, Save, Trash2, Edit2, Play, LayoutGrid, HelpCircle, X, Info, FileText, Instagram, Eye, Check, Palette, Monitor, Moon, Sun, Medal, Target, Flame, Share2, Calendar, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, Trophy, Crown, AlertTriangle, ArrowRight, ArrowLeft, Home, Download, RefreshCw, BarChart2, Save, Trash2, Edit2, Play, LayoutGrid, HelpCircle, X, Info, FileText, Instagram, Eye, Check, Palette, Monitor, Moon, Sun, Medal, Target, Flame, Share2, Calendar, Upload, ChevronLeft, ChevronRight, Maximize, Printer } from 'lucide-react';
 import { Team, TrainingMode, Step, MapData, MatchScore, ProcessedScore, Position, POINTS_SYSTEM } from './types';
 import { MAPS, WARNINGS } from './constants';
 import { Button } from './components/Button';
@@ -31,7 +31,7 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {
@@ -105,6 +105,9 @@ function MainApp() {
   // Dashboard State
   const [dashboardTab, setDashboardTab] = useState<'leaderboard' | 'strategy'>('leaderboard');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Viewer Mode State
+  const [viewerTab, setViewerTab] = useState<'ranking' | 'drops'>('ranking');
 
   // --- Effects ---
   useEffect(() => {
@@ -127,9 +130,10 @@ function MainApp() {
       case Step.TEAM_REGISTER: setStep(Step.MODE_SELECT); break;
       case Step.MAP_SORT: setStep(Step.TEAM_REGISTER); break;
       case Step.STRATEGY: setStep(Step.MAP_SORT); break;
-      case Step.SCORING: setStep(Step.SCORING); break;
+      case Step.SCORING: setStep(Step.STRATEGY); break;
       case Step.REPORT: setStep(Step.SCORING); break;
       case Step.DASHBOARD: setStep(Step.SCORING); break;
+      case Step.VIEWER: setStep(Step.DASHBOARD); break;
       default: break;
     }
   };
@@ -622,9 +626,12 @@ function MainApp() {
 
   const renderDashboard = () => (
       <div className="flex flex-col w-full p-4 md:p-8">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
               <h2 className="text-2xl font-display font-bold">DASHBOARD & RESULTADOS</h2>
               <div className="flex gap-2">
+                 <Button onClick={() => setStep(Step.VIEWER)}>
+                    <Monitor size={18} /> MODO APRESENTAÇÃO
+                 </Button>
                  <Button variant="secondary" onClick={() => setShowSocialBanner(true)}>
                     <Share2 size={18} /> GERAR BANNER
                  </Button>
@@ -727,6 +734,174 @@ function MainApp() {
       </div>
   );
 
+  const renderViewer = () => {
+    const currentMapOrder = shuffledMaps.length > 0 ? shuffledMaps : MAPS.map(m => m.id);
+
+    return (
+      <div className="fixed inset-0 z-[100] bg-black text-white overflow-y-auto animate-fade-in flex flex-col">
+         {/* Viewer Header */}
+         <div className="bg-[#111] border-b border-gray-800 p-4 px-8 flex justify-between items-center shrink-0">
+             <div className="flex items-center gap-4">
+                 <div className="w-3 h-3 rounded-full bg-red-600 animate-pulse"></div>
+                 <h1 className="text-xl md:text-2xl font-black uppercase tracking-wider">
+                    {trainingName} <span className="text-gray-500 font-medium text-sm ml-2">AO VIVO</span>
+                 </h1>
+             </div>
+             <Button variant="secondary" size="sm" onClick={() => setStep(Step.DASHBOARD)}>
+                SAIR DO MODO APRESENTAÇÃO <Maximize size={14}/>
+             </Button>
+         </div>
+
+         {/* Navigation Tabs */}
+         <div className="flex justify-center gap-4 p-4 shrink-0 bg-black/50 backdrop-blur">
+             <button 
+                onClick={() => setViewerTab('ranking')}
+                className={`px-8 py-3 rounded-full font-bold text-lg transition-all ${viewerTab === 'ranking' ? 'bg-primary text-black shadow-[0_0_20px_rgba(var(--color-primary),0.5)]' : 'bg-gray-900 text-gray-500 hover:text-white'}`}
+             >
+                TABELA DE PONTOS
+             </button>
+             <button 
+                onClick={() => setViewerTab('drops')}
+                className={`px-8 py-3 rounded-full font-bold text-lg transition-all ${viewerTab === 'drops' ? 'bg-primary text-black shadow-[0_0_20px_rgba(var(--color-primary),0.5)]' : 'bg-gray-900 text-gray-500 hover:text-white'}`}
+             >
+                MAPAS DE QUEDA
+             </button>
+         </div>
+
+         {/* Content */}
+         <div className="flex-1 p-4 md:p-8 overflow-y-auto">
+             {viewerTab === 'ranking' ? (
+                 <div className="max-w-5xl mx-auto">
+                    {/* Top 3 Podium */}
+                     <div className="flex items-end justify-center gap-4 mb-12 min-h-[200px]">
+                        {/* 2nd Place */}
+                        {leaderboard[1] && (
+                            <div className="flex flex-col items-center w-32 md:w-48 animate-fade-in" style={{animationDelay: '0.1s'}}>
+                                <div className="text-gray-400 font-bold mb-2">2º LUGAR</div>
+                                <div className="w-full bg-gray-800 h-32 rounded-t-lg border-t-4 border-gray-400 flex flex-col justify-end p-2 relative">
+                                     <div className="absolute top-[-20px] left-1/2 -translate-x-1/2 w-10 h-10 rounded-full border-2 border-gray-400 shadow-lg" style={{backgroundColor: teams.find(t=>t.id === leaderboard[1].teamId)?.color}}></div>
+                                     <div className="text-center font-bold text-white truncate">{leaderboard[1].teamName}</div>
+                                     <div className="text-center text-sm text-gray-400">{leaderboard[1].totalPoints} pts</div>
+                                </div>
+                            </div>
+                        )}
+                        {/* 1st Place */}
+                        {leaderboard[0] && (
+                            <div className="flex flex-col items-center w-40 md:w-56 -mt-8 animate-fade-in">
+                                <Crown className="text-yellow-500 mb-2 animate-bounce-slow" size={32}/>
+                                <div className="w-full bg-gray-800 h-48 rounded-t-lg border-t-4 border-yellow-500 flex flex-col justify-end p-4 relative shadow-[0_0_30px_rgba(255,212,0,0.1)]">
+                                     <div className="absolute top-[-25px] left-1/2 -translate-x-1/2 w-14 h-14 rounded-full border-2 border-yellow-500 shadow-lg" style={{backgroundColor: teams.find(t=>t.id === leaderboard[0].teamId)?.color}}></div>
+                                     <div className="text-center font-black text-xl text-white truncate mb-1">{leaderboard[0].teamName}</div>
+                                     <div className="text-center text-lg font-bold text-primary">{leaderboard[0].totalPoints} pts</div>
+                                     <div className="text-center text-xs text-gray-500 uppercase mt-2">{leaderboard[0].booyahs} Booyahs</div>
+                                </div>
+                            </div>
+                        )}
+                        {/* 3rd Place */}
+                        {leaderboard[2] && (
+                            <div className="flex flex-col items-center w-32 md:w-48 animate-fade-in" style={{animationDelay: '0.2s'}}>
+                                <div className="text-orange-700 font-bold mb-2">3º LUGAR</div>
+                                <div className="w-full bg-gray-800 h-24 rounded-t-lg border-t-4 border-orange-700 flex flex-col justify-end p-2 relative">
+                                     <div className="absolute top-[-20px] left-1/2 -translate-x-1/2 w-10 h-10 rounded-full border-2 border-orange-700 shadow-lg" style={{backgroundColor: teams.find(t=>t.id === leaderboard[2].teamId)?.color}}></div>
+                                     <div className="text-center font-bold text-white truncate">{leaderboard[2].teamName}</div>
+                                     <div className="text-center text-sm text-gray-400">{leaderboard[2].totalPoints} pts</div>
+                                </div>
+                            </div>
+                        )}
+                     </div>
+
+                     {/* Full Table */}
+                     <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 overflow-hidden">
+                        <table className="w-full text-left">
+                            <thead className="bg-black text-gray-500 text-xs uppercase font-bold tracking-wider">
+                                <tr>
+                                    <th className="p-4 text-center">Pos</th>
+                                    <th className="p-4">Time</th>
+                                    <th className="p-4 text-center">Abates</th>
+                                    <th className="p-4 text-center">Booyahs</th>
+                                    <th className="p-4 text-right text-white">Pontuação</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-800">
+                                {leaderboard.map((team, idx) => {
+                                    const teamColor = teams.find(t => t.id === team.teamId)?.color || '#fff';
+                                    return (
+                                        <tr key={team.teamId} className="hover:bg-white/5 transition-colors">
+                                            <td className="p-4 text-center font-mono text-gray-400 font-bold text-lg">{idx + 1}º</td>
+                                            <td className="p-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-4 h-4 rounded-full shadow-[0_0_10px_rgba(0,0,0,0.5)]" style={{backgroundColor: teamColor}}></div>
+                                                    <span className="font-bold text-lg">{team.teamName}</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-center text-gray-400">{team.totalKills}</td>
+                                            <td className="p-4 text-center text-gray-400">{team.booyahs}</td>
+                                            <td className="p-4 text-right font-black text-2xl text-primary">{team.totalPoints}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                     </div>
+                 </div>
+             ) : (
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-[1600px] mx-auto">
+                    {currentMapOrder.map((mapId, index) => {
+                        const mapData = MAPS.find(m => m.id === mapId);
+                        if (!mapData) return null;
+                        
+                        // Check for Basic Mode selections to show them if necessary
+                        const hasBasicSelections = mode === 'basic';
+                        
+                        return (
+                             <div key={mapId} className="bg-[#1a1a1a] border border-gray-800 rounded-xl overflow-hidden flex flex-col h-full animate-fade-in" style={{animationDelay: `${index * 0.1}s`}}>
+                                 <div className="p-3 bg-black border-b border-gray-800 flex justify-between items-center">
+                                     <span className="font-bold text-gray-500 text-sm">QUEDA {index + 1}</span>
+                                     <span className="font-bold text-primary uppercase">{mapData.name}</span>
+                                 </div>
+                                 <div className="flex-1 min-h-[300px] relative">
+                                    {mode === 'basic' ? (
+                                        <div className="p-4 h-full overflow-y-auto">
+                                            <table className="w-full text-sm">
+                                                <tbody className="divide-y divide-gray-800">
+                                                    {teams.map(team => {
+                                                        const city = basicSelections[mapId]?.[team.id];
+                                                        return city ? (
+                                                            <tr key={team.id}>
+                                                                <td className="py-2 flex items-center gap-2">
+                                                                    <div className="w-2 h-2 rounded-full" style={{backgroundColor: team.color}}></div>
+                                                                    <span className="font-bold text-gray-300">{team.name}</span>
+                                                                </td>
+                                                                <td className="py-2 text-right text-primary font-mono">{city}</td>
+                                                            </tr>
+                                                        ) : null
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    ) : (
+                                        <div className="h-full p-2">
+                                            <DraggableMap
+                                                mapName=""
+                                                image={mapData.image}
+                                                teams={teams}
+                                                positions={premiumPositions[mapId] || {}}
+                                                onPositionChange={() => {}}
+                                                readOnly={true}
+                                            />
+                                        </div>
+                                    )}
+                                 </div>
+                             </div>
+                        )
+                    })}
+                 </div>
+             )}
+         </div>
+      </div>
+    );
+  };
+
   const renderReport = () => {
     const textReport = useMemo(() => {
         try {
@@ -781,6 +956,34 @@ function MainApp() {
         </div>
     );
   };
+  
+  const renderHelpModal = () => (
+    showHelp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+            <div className="bg-panel rounded-xl border border-theme p-6 max-w-lg w-full shadow-theme max-h-[80vh] overflow-y-auto">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold text-main flex items-center gap-2"><HelpCircle className="text-primary"/> Ajuda & Instruções</h3>
+                    <Button variant="ghost" size="sm" onClick={() => setShowHelp(false)}><X size={18}/></Button>
+                </div>
+                
+                <div className="space-y-4 text-sm text-muted">
+                    <p><strong className="text-white">1. Cadastro de Times:</strong> Adicione os nomes dos times e escolha cores para identificação.</p>
+                    <p><strong className="text-white">2. Sorteio de Mapas:</strong> Defina a ordem dos mapas que serão jogados. Use a roleta para aleatorizar.</p>
+                    <p><strong className="text-white">3. Estratégia (Drag & Drop):</strong> 
+                    <br/>- No modo <strong>Básico</strong>, selecione as cidades em uma lista.
+                    <br/>- No modo <strong>Premium</strong>, arraste os nomes dos times diretamente para suas calls no mapa.
+                    </p>
+                    <p><strong className="text-white">4. Pontuação:</strong> Insira o Rank (Posição) e Kills de cada time após cada queda. A pontuação é calculada automaticamente.</p>
+                    <p><strong className="text-white">5. Dashboard:</strong> Visualize a tabela de classificação e gere banners.</p>
+                </div>
+                
+                <div className="mt-6 flex justify-end">
+                    <Button onClick={() => setShowHelp(false)}>Entendi</Button>
+                </div>
+            </div>
+        </div>
+    )
+  );
 
   const renderDeleteModal = () => (
     teamToDelete && (
@@ -957,40 +1160,6 @@ function MainApp() {
     );
   };
 
-  const renderHelpModal = () => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-      <div className="bg-panel w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl border border-theme shadow-theme relative flex flex-col">
-        <div className="sticky top-0 bg-panel/95 backdrop-blur-md p-6 border-b border-theme flex justify-between items-center z-10">
-          <h2 className="text-2xl font-display font-bold text-main flex items-center gap-2">
-            <Info className="text-primary" /> Instruções & Ajuda
-          </h2>
-          <button 
-            onClick={() => setShowHelp(false)}
-            className="text-muted hover:text-main transition-colors bg-background p-2 rounded-full border border-theme"
-          >
-            <X size={20} />
-          </button>
-        </div>
-        <div className="p-6 space-y-6">
-           <p className="text-muted">Utilize esta plataforma para organizar seus treinos. Cadastre times, sorteie mapas e gere relatórios automáticos.</p>
-           <div className="bg-background p-4 rounded border border-theme">
-             <h4 className="font-bold text-primary mb-2">Dica Rápida</h4>
-             <p className="text-sm text-muted">No modo Premium, você pode arrastar os nomes dos times sobre a imagem do mapa para definir calls precisas.</p>
-           </div>
-           
-           <h4 className="font-bold text-main">Temas</h4>
-           <p className="text-muted text-sm">Use o botão de configurações no topo para alternar entre modo Claro e Escuro, ou mudar a cor de destaque.</p>
-           
-           <h4 className="font-bold text-main">Cores dos Times</h4>
-           <p className="text-muted text-sm">Ao cadastrar um time, uma cor é gerada automaticamente. Você pode alterá-la clicando no círculo colorido.</p>
-        </div>
-        <div className="p-6 border-t border-theme bg-background text-center">
-          <Button onClick={() => setShowHelp(false)} className="w-full md:w-auto">Entendi</Button>
-        </div>
-      </div>
-    </div>
-  );
-
   const renderTeamRegister = () => (
     <div className="flex-1 w-full p-6 max-w-4xl mx-auto flex flex-col">
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
@@ -1087,12 +1256,15 @@ function MainApp() {
 
     return (
       <div className="flex-1 flex flex-col w-full p-4 md:p-8">
-        <div className="flex flex-col md:flex-row justify-between items-center mb-6 no-print gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
           <div>
             <h2 className="text-2xl font-display font-bold text-main">ESTRATÉGIA DE QUEDAS</h2>
             <p className="text-muted text-sm">Configure as calls e posicionamentos</p>
           </div>
-          <div className="flex gap-3 flex-wrap justify-center">
+          <div className="flex gap-3 flex-wrap justify-center no-print">
+            <Button variant="secondary" onClick={() => window.print()}>
+              <Printer size={18} /> IMPRIMIR
+            </Button>
             <Button variant="secondary" onClick={() => setShowStrategyVisualizer(true)}>
               <Eye size={18} /> GERAR VISUALIZAÇÃO
             </Button>
@@ -1119,7 +1291,7 @@ function MainApp() {
         </div>
 
         {mode === 'basic' ? (
-          <div className="overflow-x-auto bg-panel rounded-xl border border-theme shadow-theme">
+          <div className="overflow-x-auto bg-panel rounded-xl border border-theme shadow-theme print:overflow-visible">
              <table className="w-full text-left border-collapse min-w-[1200px]">
                <thead>
                  <tr className="bg-background text-primary uppercase text-xs tracking-wider border-b border-theme">
@@ -1164,7 +1336,7 @@ function MainApp() {
         ) : (
           <div className="w-full">
             {/* Desktop View: Grid */}
-            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-6 print:grid print:grid-cols-2 print:gap-4">
                 {currentMapOrder.map((mapId, index) => {
                 const mapData = MAPS.find(m => m.id === mapId);
                 if (!mapData) return null;
@@ -1186,7 +1358,7 @@ function MainApp() {
                 })}
             </div>
             {/* Mobile View: Tabs/Carousel */}
-            <div className="md:hidden flex flex-col gap-4">
+            <div className="md:hidden flex flex-col gap-4 print:hidden">
                 <div className="flex items-center justify-between bg-panel p-2 rounded-lg border border-theme">
                     <Button variant="ghost" size="sm" onClick={() => setActiveStrategyMapIndex(prev => Math.max(0, prev - 1))} disabled={activeStrategyMapIndex === 0}>
                         <ChevronLeft/>
@@ -1237,90 +1409,96 @@ function MainApp() {
   return (
     <div className="bg-background min-h-screen text-main font-sans selection:bg-primary selection:text-black relative flex flex-col transition-colors duration-300">
       {/* --- Top Floating Controls --- */}
-      <div className="fixed top-4 right-4 z-50 no-print flex gap-2 bg-panel/80 backdrop-blur-md p-2 rounded-xl border border-theme shadow-lg items-center">
-         {/* Back Button (Only if not Home) */}
-         {step !== Step.HOME && (
-           <Button variant="ghost" size="sm" onClick={handleBack} className="!p-2" title="Voltar">
-             <ArrowLeft size={18} />
+      {step !== Step.VIEWER && (
+        <div className="fixed top-4 right-4 z-50 no-print flex gap-2 bg-panel/80 backdrop-blur-md p-2 rounded-xl border border-theme shadow-lg items-center">
+           {/* Back Button (Only if not Home) */}
+           {step !== Step.HOME && (
+             <Button variant="ghost" size="sm" onClick={handleBack} className="!p-2" title="Voltar">
+               <ArrowLeft size={18} />
+             </Button>
+           )}
+
+           {/* Home Button (Only if not Home) */}
+           {step !== Step.HOME && (
+             <Button variant="ghost" size="sm" onClick={handleHome} className="!p-2" title="Início">
+               <Home size={18} />
+             </Button>
+           )}
+
+           {/* Divider */}
+           {step !== Step.HOME && <div className="w-px h-6 bg-theme/20 mx-1"></div>}
+
+           {/* Help Button */}
+           <Button variant="ghost" size="sm" onClick={() => setShowHelp(true)} className="!p-2" title="Ajuda">
+             <HelpCircle size={18} /> <span className="hidden sm:inline text-xs font-bold">Ajuda</span>
            </Button>
-         )}
 
-         {/* Home Button (Only if not Home) */}
-         {step !== Step.HOME && (
-           <Button variant="ghost" size="sm" onClick={handleHome} className="!p-2" title="Início">
-             <Home size={18} />
-           </Button>
-         )}
-
-         {/* Divider */}
-         {step !== Step.HOME && <div className="w-px h-6 bg-theme/20 mx-1"></div>}
-
-         {/* Help Button */}
-         <Button variant="ghost" size="sm" onClick={() => setShowHelp(true)} className="!p-2" title="Ajuda">
-           <HelpCircle size={18} /> <span className="hidden sm:inline text-xs font-bold">Ajuda</span>
-         </Button>
-
-         {/* Mode Toggle */}
-         <button 
-           onClick={() => setIsDarkMode(!isDarkMode)}
-           className="p-2 rounded-lg hover:bg-background text-muted hover:text-main transition-colors"
-           title={isDarkMode ? "Mudar para Claro" : "Mudar para Escuro"}
-         >
-           {isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
-         </button>
-
-         {/* Theme Palette */}
-         <div className="group relative">
-           <button className="p-2 rounded-lg hover:bg-background text-muted hover:text-main transition-colors">
-             <Palette size={18}/>
+           {/* Mode Toggle */}
+           <button 
+             onClick={() => setIsDarkMode(!isDarkMode)}
+             className="p-2 rounded-lg hover:bg-background text-muted hover:text-main transition-colors"
+             title={isDarkMode ? "Mudar para Claro" : "Mudar para Escuro"}
+           >
+             {isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
            </button>
-           <div className="absolute right-0 top-full mt-2 bg-panel border border-theme rounded-lg p-2 hidden group-hover:flex flex-col gap-2 shadow-xl min-w-[120px]">
-              <span className="text-xs text-muted font-bold px-2 uppercase">Cor Destaque</span>
-              {THEMES.map(theme => (
-                <button 
-                  key={theme.name} 
-                  onClick={() => setActiveTheme(theme)}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-background text-sm"
-                >
-                  <div className="w-4 h-4 rounded-full" style={{backgroundColor: theme.hex}}></div>
-                  <span className={activeTheme.name === theme.name ? 'text-main font-bold' : 'text-muted'}>{theme.name}</span>
-                </button>
-              ))}
-           </div>
-         </div>
-      </div>
 
-      {showHelp && renderHelpModal()}
+           {/* Theme Palette */}
+           <div className="group relative">
+             <button className="p-2 rounded-lg hover:bg-background text-muted hover:text-main transition-colors">
+               <Palette size={18}/>
+             </button>
+             <div className="absolute right-0 top-full mt-2 bg-panel border border-theme rounded-lg p-2 hidden group-hover:flex flex-col gap-2 shadow-xl min-w-[120px]">
+                <span className="text-xs text-muted font-bold px-2 uppercase">Cor Destaque</span>
+                {THEMES.map(theme => (
+                  <button 
+                    key={theme.name} 
+                    onClick={() => setActiveTheme(theme)}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-background text-sm"
+                  >
+                    <div className="w-4 h-4 rounded-full" style={{backgroundColor: theme.hex}}></div>
+                    <span className={activeTheme.name === theme.name ? 'text-main font-bold' : 'text-muted'}>{theme.name}</span>
+                  </button>
+                ))}
+             </div>
+           </div>
+        </div>
+      )}
+
+      {renderHelpModal()}
       {renderDeleteModal()}
       {renderVisualizerModal()}
       {renderSocialBanner()}
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col pt-24 px-4 md:px-0">
-        {step === Step.HOME && renderHome()}
-        {step === Step.MODE_SELECT && renderModeSelect()}
-        {step === Step.TEAM_REGISTER && renderTeamRegister()}
-        {step === Step.MAP_SORT && renderMapSort()}
-        {step === Step.STRATEGY && renderStrategy()}
-        {step === Step.SCORING && renderScoring()}
-        {step === Step.REPORT && renderReport()}
-        {step === Step.DASHBOARD && renderDashboard()}
-      </div>
+      {step === Step.VIEWER ? renderViewer() : (
+          <div className="flex-1 flex flex-col pt-24 px-4 md:px-0">
+            {step === Step.HOME && renderHome()}
+            {step === Step.MODE_SELECT && renderModeSelect()}
+            {step === Step.TEAM_REGISTER && renderTeamRegister()}
+            {step === Step.MAP_SORT && renderMapSort()}
+            {step === Step.STRATEGY && renderStrategy()}
+            {step === Step.SCORING && renderScoring()}
+            {step === Step.REPORT && renderReport()}
+            {step === Step.DASHBOARD && renderDashboard()}
+          </div>
+      )}
 
       {/* Persistent Footer */}
-      <footer className="w-full py-6 text-center text-muted text-xs border-t border-theme mt-auto bg-panel/50 backdrop-blur-sm">
-        <div className="flex flex-col items-center gap-2">
-          <span className="font-semibold">Criador de Treino • {new Date().getFullYear()}</span>
-          <a 
-            href="https://www.instagram.com/jhanmedeiros/" 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="hover:text-primary transition-colors flex items-center gap-1.5 bg-background px-3 py-1 rounded-full border border-theme hover:border-primary"
-          >
-            Desenvolvido por <span className="font-bold text-main">Jhan Medeiros</span> <Instagram size={12} />
-          </a>
-        </div>
-      </footer>
+      {step !== Step.VIEWER && (
+        <footer className="w-full py-6 text-center text-muted text-xs border-t border-theme mt-auto bg-panel/50 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-2">
+            <span className="font-semibold">Criador de Treino • {new Date().getFullYear()}</span>
+            <a 
+                href="https://www.instagram.com/jhanmedeiros/" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="hover:text-primary transition-colors flex items-center gap-1.5 bg-background px-3 py-1 rounded-full border border-theme hover:border-primary"
+            >
+                Desenvolvido por <span className="font-bold text-main">Jhan Medeiros</span> <Instagram size={12} />
+            </a>
+            </div>
+        </footer>
+      )}
     </div>
   );
 }

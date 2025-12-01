@@ -41,7 +41,8 @@ export enum Step {
   STRATEGY = 'STRATEGY',
   SCORING = 'SCORING',
   REPORT = 'REPORT',
-  DASHBOARD = 'DASHBOARD'
+  DASHBOARD = 'DASHBOARD',
+  VIEWER = 'VIEWER'
 }
 
 export const POINTS_SYSTEM: Record<number, number> = {
