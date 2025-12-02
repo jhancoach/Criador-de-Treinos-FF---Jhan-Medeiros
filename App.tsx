@@ -1,10 +1,11 @@
 import React, { Component, useState, useEffect, useMemo, ErrorInfo, useRef } from 'react';
-import { Users, Trophy, Crown, AlertTriangle, ArrowRight, ArrowLeft, Home, Download, RefreshCw, BarChart2, Save, Trash2, Edit2, Play, LayoutGrid, HelpCircle, X, Info, FileText, Instagram, Eye, Check, Palette, Monitor, Moon, Sun, Medal, Target, Flame, Share2, Calendar, Upload, ChevronLeft, ChevronRight, Maximize, Printer, UserPlus, ChevronDown, ChevronUp, Zap, UploadCloud, Binary, Image, Globe, Search, Layers, Copy, MessageCircle, ListPlus, Lock, Unlock, UserCheck, ClipboardList, Map as MapIcon, ShieldCheck } from 'lucide-react';
+import { Users, Trophy, Crown, AlertTriangle, ArrowRight, ArrowLeft, Home, Download, RefreshCw, BarChart2, Save, Trash2, Edit2, Play, LayoutGrid, HelpCircle, X, Info, FileText, Instagram, Eye, Check, Palette, Monitor, Moon, Sun, Medal, Target, Flame, Share2, Calendar, Upload, ChevronLeft, ChevronRight, Maximize, Printer, UserPlus, ChevronDown, ChevronUp, Zap, UploadCloud, Binary, Image, Globe, Search, Layers, Copy, MessageCircle, ListPlus, Lock, Unlock, UserCheck, ClipboardList, Map as MapIcon, ShieldCheck, Share, Smartphone, MousePointer2 } from 'lucide-react';
 import { Team, TrainingMode, Step, MapData, MatchScore, ProcessedScore, Position, POINTS_SYSTEM, PlayerStats, SavedTrainingSession, OpenTraining, TrainingRequest } from './types';
 import { MAPS, WARNINGS } from './constants';
 import { Button } from './components/Button';
 import { DraggableMap } from './components/DraggableMap';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
+import { Tooltip } from './components/Tooltip';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
 import * as htmlToImage from 'html-to-image';
 
 // Theme Configuration
@@ -97,7 +98,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 }
 
-function MainApp() {
+function App() {
   // --- State ---
   const [step, setStep] = useState<Step>(Step.HOME);
   const [mode, setMode] = useState<TrainingMode>('basic');
@@ -996,15 +997,32 @@ function MainApp() {
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
             <div className="bg-panel border border-theme rounded-xl max-w-lg w-full p-6 relative">
                 <button onClick={() => setShowHelp(false)} className="absolute top-4 right-4 text-muted hover:text-white"><X/></button>
-                <h3 className="text-2xl font-bold mb-4 text-primary">Ajuda Rápida</h3>
-                <ul className="list-disc list-inside space-y-2 text-gray-300 text-sm">
-                    <li><strong className="text-white">Modos:</strong> Escolha entre Básico (Listas) ou Premium (Mapas Interativos).</li>
-                    <li><strong className="text-white">Mapas:</strong> Sorteie os mapas ou defina manualmente.</li>
-                    <li><strong className="text-white">Calls:</strong> No modo Premium, arraste os ícones dos times. No Básico, selecione a cidade.</li>
-                    <li><strong className="text-white">Pontuação:</strong> O sistema calcula automaticamente baseado no Rank e Kills (Sistema LBFF).</li>
-                    <li><strong className="text-white">Relatórios:</strong> Gere imagens para Stories ou textos formatados para WhatsApp.</li>
-                    <li><strong className="text-white">Hub:</strong> Salve seus treinos para acessar depois.</li>
-                </ul>
+                <h3 className="text-2xl font-bold mb-4 text-primary flex items-center gap-2"><HelpCircle size={24}/> Ajuda & Tutorial</h3>
+                <div className="space-y-4 text-gray-300 text-sm max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+                    <section>
+                        <h4 className="font-bold text-white mb-1">🎯 Visão Geral</h4>
+                        <p>O JhanTraining (Criador de Treinos) facilita a gestão de salas personalizadas, desde o sorteio de mapas até o cálculo automático de pontuação.</p>
+                    </section>
+                    <section>
+                        <h4 className="font-bold text-white mb-1">🚀 Como Usar</h4>
+                        <ol className="list-decimal list-inside space-y-1 ml-1 text-xs">
+                            <li>Cadastre seus times na aba <strong>Times</strong>.</li>
+                            <li>Sorteie os mapas em <strong>Mapas</strong>.</li>
+                            <li>Defina as calls (cidades) ou posições exatas em <strong>Calls</strong>.</li>
+                            <li>Após as quedas, insira as posições e kills em <strong>Pontos</strong>.</li>
+                            <li>Acompanhe o ranking em tempo real em <strong>Resultados</strong>.</li>
+                        </ol>
+                    </section>
+                    <section>
+                        <h4 className="font-bold text-white mb-1">🗺️ Mapa Interativo</h4>
+                        <ul className="list-disc list-inside space-y-1 ml-1 text-xs">
+                            <li>Use <strong>Zoom</strong> para aproximar.</li>
+                            <li><strong>Arraste</strong> o fundo para mover o mapa.</li>
+                            <li><strong>Arraste</strong> os ícones dos times para posicionar.</li>
+                            <li>Os ícones alinham-se automaticamente (Snapping).</li>
+                        </ul>
+                    </section>
+                </div>
             </div>
         </div>
     );
@@ -1014,13 +1032,16 @@ function MainApp() {
     if (!teamToDelete) return null;
     return (
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
-            <div className="bg-panel border border-red-500/50 rounded-xl max-w-sm w-full p-6 text-center">
-                <AlertTriangle className="text-red-500 w-16 h-16 mx-auto mb-4"/>
-                <h3 className="text-xl font-bold mb-2">Excluir Time?</h3>
-                <p className="text-muted mb-6">Esta ação não pode ser desfeita.</p>
-                <div className="flex gap-4">
-                    <Button variant="secondary" onClick={() => setTeamToDelete(null)} className="flex-1">Cancelar</Button>
-                    <Button variant="danger" onClick={executeDeleteTeam} className="flex-1">Excluir</Button>
+            <div className="bg-[#111] border-2 border-red-600 rounded-xl max-w-sm w-full p-6 text-center shadow-[0_0_50px_rgba(220,38,38,0.3)] animate-bounce-slow relative overflow-hidden">
+                <div className="absolute inset-0 bg-red-900/10 z-0"></div>
+                <div className="relative z-10">
+                    <AlertTriangle className="text-red-500 w-16 h-16 mx-auto mb-4"/>
+                    <h3 className="text-xl font-bold mb-2 text-white">Excluir Time?</h3>
+                    <p className="text-gray-400 mb-6 text-sm">Esta ação removerá o time permanentemente do treino atual.</p>
+                    <div className="flex gap-4">
+                        <Button variant="secondary" onClick={() => setTeamToDelete(null)} className="flex-1 border-gray-700 hover:bg-gray-800 text-white">Cancelar</Button>
+                        <Button variant="danger" onClick={executeDeleteTeam} className="flex-1 bg-red-600 hover:bg-red-700 text-white border-none shadow-lg shadow-red-900/50">Sim, Excluir</Button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1029,7 +1050,7 @@ function MainApp() {
   
   const renderVisualizerModal = () => {
       if (!showStrategyVisualizer) return null;
-      return null; // Placeholder as implementation details were not fully provided, prevents crash.
+      return null; 
   };
 
   const renderStepper = () => {
@@ -1074,42 +1095,74 @@ function MainApp() {
   };
 
   const renderHome = () => (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center max-w-2xl animate-in fade-in zoom-in duration-500 p-6">
-        <div className="w-24 h-16 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full mb-8 flex items-center justify-center shadow-[0_0_40px_rgba(var(--color-primary),0.4)]">
-             <Target size={40} className="text-black"/>
-        </div>
-        <h1 className="text-5xl md:text-7xl font-black mb-4 tracking-tighter uppercase text-white">
-            CRIADOR DE <span className="text-primary">TREINO</span>
-        </h1>
-        <p className="text-xl text-gray-400 mb-12 max-w-md">
-            Gerencie seus treinos de Free Fire, crie calls estratégicas e gere resultados profissionais em segundos.
-        </p>
+    <div className="relative w-full h-screen flex flex-col items-center justify-center overflow-hidden bg-black text-white">
+        {/* Full Screen Dynamic Background */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-800 via-black to-black opacity-80"></div>
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+        
+        {/* Animated Orbs */}
+        <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-primary/20 blur-[150px] rounded-full animate-pulse"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-purple-900/20 blur-[150px] rounded-full animate-pulse delay-1000"></div>
 
-        <div className="flex flex-col gap-4 w-full max-w-lg">
-            <div className="flex flex-col md:flex-row gap-4 w-full">
-                <Button onClick={handleStart} size="lg" className="flex-1 h-16 text-base font-bold shadow-xl shadow-primary/10 bg-primary text-black hover:bg-yellow-400 border-none">
-                    <Zap size={20} fill="currentColor"/> COMEÇAR AGORA
-                </Button>
-                <Button onClick={() => setStep(Step.WAITING_LIST)} variant="secondary" className="flex-1 h-16 text-base font-bold bg-[#111] border-gray-800 hover:bg-gray-800 text-white">
-                    <ListPlus size={20}/> LISTA DE ESPERA
-                </Button>
-            </div>
+        {/* Content Container - Split Layout on Desktop */}
+        <div className="relative z-10 max-w-7xl w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center p-8 lg:p-16 h-full">
             
-            <Button onClick={() => setStep(Step.PUBLIC_HUB)} variant="secondary" className="w-full h-14 text-base font-bold bg-[#111] border-gray-800 hover:bg-gray-800 text-white">
-                <Globe size={20}/> HUB PÚBLICO
-            </Button>
+            {/* Left Column: Hero Text & Actions */}
+            <div className="flex flex-col items-start space-y-8 animate-in slide-in-from-left duration-700">
+                <div className="space-y-4">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-md text-xs font-medium text-primary uppercase tracking-widest">
+                        <Zap size={14} fill="currentColor"/> v2.0 - Edição Competitiva
+                    </div>
+                    <h1 className="text-6xl lg:text-8xl font-black tracking-tighter leading-none uppercase">
+                        CRIADOR DE<br/>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-white">TREINOS</span>
+                    </h1>
+                    <p className="text-lg lg:text-xl text-gray-400 max-w-lg leading-relaxed">
+                        A ferramenta definitiva para gestão de treinos de Free Fire. Estratégia, pontuação e análise em um só lugar.
+                    </p>
+                </div>
 
-            {hasDraft && (
-                <Button onClick={loadDraft} variant="secondary" className="w-full h-12 text-sm border-primary/30 text-primary hover:bg-primary/5">
-                    <Save size={18}/> CONTINUAR RASCUNHO
-                </Button>
-            )}
+                <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+                    <Tooltip content="Iniciar configuração do treino" className="flex-1">
+                        <Button onClick={handleStart} size="lg" className="w-full h-16 text-lg font-bold shadow-[0_0_30px_rgba(var(--color-primary),0.3)] bg-primary text-black hover:bg-white border-none hover:scale-105 transition-all">
+                            COMEÇAR AGORA <ArrowRight size={24} className="ml-2"/>
+                        </Button>
+                    </Tooltip>
+                    <Tooltip content="Lista de espera online" className="flex-1">
+                        <Button onClick={() => setStep(Step.WAITING_LIST)} variant="secondary" className="w-full h-16 text-lg font-bold bg-white/5 border-white/10 hover:bg-white/10 text-white backdrop-blur-md">
+                            <ListPlus size={24}/> FILA
+                        </Button>
+                    </Tooltip>
+                </div>
+
+                <div className="flex items-center gap-6 text-sm text-gray-500 font-mono pt-4">
+                    <button onClick={() => setStep(Step.PUBLIC_HUB)} className="hover:text-primary transition-colors flex items-center gap-2"><Globe size={16}/> Hub Público</button>
+                    {hasDraft && <button onClick={loadDraft} className="hover:text-primary transition-colors flex items-center gap-2 text-primary"><Save size={16}/> Restaurar Sessão</button>}
+                </div>
+            </div>
+
+            {/* Right Column: Feature Visuals */}
+            <div className="hidden lg:grid grid-cols-2 gap-6 animate-in slide-in-from-right duration-700 delay-200">
+                {[
+                    { icon: MapIcon, title: 'Mapas', desc: 'Estratégia Visual', color: 'bg-blue-500' },
+                    { icon: Users, title: 'Times', desc: 'Gestão Completa', color: 'bg-green-500' },
+                    { icon: BarChart2, title: 'Stats', desc: 'Rankings Auto', color: 'bg-purple-500' },
+                    { icon: Share2, title: 'Share', desc: 'Relatórios Prontos', color: 'bg-pink-500' }
+                ].map((item, i) => (
+                    <div key={i} className="group bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-2xl hover:bg-white/10 transition-all hover:-translate-y-2 cursor-default">
+                        <div className={`w-12 h-12 rounded-xl ${item.color} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform`}>
+                            <item.icon size={24} className="text-white"/>
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-1">{item.title}</h3>
+                        <p className="text-sm text-gray-400">{item.desc}</p>
+                    </div>
+                ))}
+            </div>
         </div>
-
-        <div className="mt-12 flex gap-4 text-sm text-gray-500">
-            <button onClick={() => setShowHelp(true)} className="flex items-center gap-1 hover:text-white transition-colors"><HelpCircle size={14}/> Como usar</button>
-            <span>•</span>
-            <span className="flex items-center gap-1"><ShieldCheck size={14}/> v2.0 Stable</span>
+        
+        {/* Footer Credit */}
+        <div className="absolute bottom-4 text-xs text-gray-600 font-mono">
+            &copy; {new Date().getFullYear()} JhanTraining System
         </div>
     </div>
   );
@@ -1165,49 +1218,57 @@ function MainApp() {
   );
 
   const renderTeamRegister = () => (
-    <div className="flex flex-col items-center w-full max-w-4xl">
+    <div className="flex flex-col items-center w-full max-w-4xl h-full">
         <h2 className="text-3xl font-display font-bold mb-8">REGISTRO DE TIMES</h2>
         
-        <div className="w-full bg-panel border border-theme rounded-xl p-6 mb-8">
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
-                <input 
-                    value={newTeamName}
-                    onChange={(e) => setNewTeamName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && addTeam()}
-                    placeholder="Nome do Time..." 
-                    className="flex-1 bg-black/50 border border-gray-700 rounded-lg px-4 py-3 focus:border-primary outline-none text-white"
-                />
-                <Button onClick={addTeam} disabled={!newTeamName.trim() || teams.length >= 15}>
-                    <UserPlus size={20}/> ADICIONAR
-                </Button>
+        <div className="w-full bg-panel border border-theme rounded-xl p-6 mb-8 flex flex-col max-h-[60vh]">
+            <div className="flex flex-col md:flex-row gap-4 mb-6 shrink-0">
+                <Tooltip content="Nome do novo time" className="flex-1">
+                    <input 
+                        value={newTeamName}
+                        onChange={(e) => setNewTeamName(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && addTeam()}
+                        placeholder="Nome do Time..." 
+                        className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-3 focus:border-primary outline-none text-white"
+                    />
+                </Tooltip>
+                <Tooltip content="Adicionar time à lista">
+                    <Button onClick={addTeam} disabled={!newTeamName.trim() || teams.length >= 15}>
+                        <UserPlus size={20}/> ADICIONAR
+                    </Button>
+                </Tooltip>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto custom-scrollbar pr-2 flex-1">
                 {teams.map((team, idx) => (
                     <div key={team.id} className="bg-background border border-gray-800 rounded-lg p-3 flex flex-col gap-2 group hover:border-gray-600 transition-colors">
                         <div className="flex items-center gap-3">
                             <span className="text-muted font-mono text-xs w-6">#{idx + 1}</span>
                             
                             {/* Color Picker Trigger */}
-                            <div className="relative">
-                                <button 
-                                    className="w-8 h-8 rounded-full border-2 border-white/20 hover:scale-110 transition-transform shadow-lg"
-                                    style={{ backgroundColor: team.color }}
-                                    onClick={() => {
-                                        const newColor = prompt("Hex Cor:", team.color);
-                                        if(newColor) updateTeamColor(team.id, newColor);
-                                    }}
-                                ></button>
-                            </div>
+                            <Tooltip content="Alterar cor">
+                                <div className="relative">
+                                    <button 
+                                        className="w-8 h-8 rounded-full border-2 border-white/20 hover:scale-110 transition-transform shadow-lg"
+                                        style={{ backgroundColor: team.color }}
+                                        onClick={() => {
+                                            const newColor = prompt("Hex Cor:", team.color);
+                                            if(newColor) updateTeamColor(team.id, newColor);
+                                        }}
+                                    ></button>
+                                </div>
+                            </Tooltip>
 
                             {/* Logo Upload */}
-                            <div className="relative group/logo cursor-pointer" onClick={() => triggerLogoUpload(team.id)}>
-                                {team.logo ? (
-                                    <img src={team.logo} className="w-10 h-10 rounded-lg object-cover bg-black" />
-                                ) : (
-                                    <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center text-xs text-muted hover:bg-gray-700">Logo</div>
-                                )}
-                            </div>
+                            <Tooltip content="Upload de Logo">
+                                <div className="relative group/logo cursor-pointer" onClick={() => triggerLogoUpload(team.id)}>
+                                    {team.logo ? (
+                                        <img src={team.logo} className="w-10 h-10 rounded-lg object-cover bg-black" />
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center text-xs text-muted hover:bg-gray-700">Logo</div>
+                                    )}
+                                </div>
+                            </Tooltip>
 
                             {/* Name Edit */}
                             <input 
@@ -1349,39 +1410,72 @@ function MainApp() {
   const renderPublicHub = () => (
     <div className="flex flex-col items-center w-full max-w-4xl">
         <h2 className="text-3xl font-display font-bold mb-8">HUB DE TREINOS</h2>
-        <p className="text-muted mb-8">Treinos salvos localmente no seu dispositivo.</p>
+        
+        {/* Description Banner */}
+        <div className="bg-panel border border-theme rounded-xl p-6 mb-8 w-full flex flex-col md:flex-row items-center gap-6 shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="p-4 bg-primary/10 rounded-full text-primary shrink-0 border border-primary/20">
+                <Globe size={32} />
+            </div>
+            <div className="text-center md:text-left">
+                <h3 className="font-bold text-white text-lg mb-2">Seu Histórico de Sessões</h3>
+                <p className="text-muted text-sm leading-relaxed max-w-2xl">
+                    Este é o seu banco de dados local. Aqui ficam armazenados os treinos que você salvou manualmente na tela de Resultados. 
+                    Utilize o Hub para <strong>revisar pontuações passadas</strong>, analisar o desempenho dos times ou <strong>carregar uma configuração antiga</strong> para iniciar um novo treino rapidamente.
+                </p>
+                <div className="mt-3 flex items-center justify-center md:justify-start gap-2 text-xs text-gray-500 bg-black/20 w-fit px-3 py-1 rounded-full mx-auto md:mx-0">
+                    <Info size={12} />
+                    <span>Os dados são salvos no cache deste navegador.</span>
+                </div>
+            </div>
+        </div>
 
         <div className="grid grid-cols-1 gap-4 w-full">
             {savedTrainings.map(session => (
-                <div key={session.id} className="bg-panel border border-theme rounded-xl p-6 hover:border-primary transition-colors cursor-pointer group" onClick={() => loadFromHub(session)}>
-                    <div className="flex justify-between items-start">
+                <div key={session.id} className="bg-panel border border-theme rounded-xl p-6 hover:border-primary transition-all duration-300 cursor-pointer group relative overflow-hidden shadow-md hover:shadow-lg" onClick={() => loadFromHub(session)}>
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                    <div className="flex justify-between items-start relative z-10">
                         <div>
-                            <h3 className="font-bold text-xl text-primary mb-1 group-hover:underline">{session.name}</h3>
-                            <div className="text-sm text-muted flex gap-4">
-                                <span className="flex items-center gap-1"><Calendar size={14}/> {session.date}</span>
-                                <span className="flex items-center gap-1"><Users size={14}/> {session.teamsCount} Times</span>
-                                <span className="flex items-center gap-1"><ListPlus size={14}/> {session.matchesCount} Quedas</span>
+                            <h3 className="font-bold text-xl text-white group-hover:text-primary mb-1 transition-colors flex items-center gap-2">
+                                {session.name}
+                                <span className="text-[10px] bg-white/10 text-muted px-2 py-0.5 rounded border border-white/5 font-mono uppercase">ID: {session.id.slice(-4)}</span>
+                            </h3>
+                            <div className="text-sm text-muted flex flex-wrap gap-4 mt-2">
+                                <span className="flex items-center gap-1.5"><Calendar size={14} className="text-primary/70"/> {session.date}</span>
+                                <span className="flex items-center gap-1.5"><Users size={14} className="text-primary/70"/> {session.teamsCount} Times</span>
+                                <span className="flex items-center gap-1.5"><ListPlus size={14} className="text-primary/70"/> {session.matchesCount} Quedas</span>
                             </div>
                         </div>
-                        <Button size="sm" variant="ghost" className="text-red-900 hover:text-red-500 hover:bg-red-900/10" onClick={(e) => deleteFromHub(session.id, e)}>
-                            <Trash2 size={18}/>
-                        </Button>
+                        <div className="flex gap-2">
+                            <Tooltip content="Carregar este treino">
+                                <Button size="sm" variant="secondary" className="hover:bg-primary hover:text-black border-gray-700">
+                                    <Upload size={16}/>
+                                </Button>
+                            </Tooltip>
+                            <Tooltip content="Excluir permanentemente">
+                                <Button size="sm" variant="ghost" className="text-red-500 hover:bg-red-500/10 hover:text-red-400" onClick={(e) => deleteFromHub(session.id, e)}>
+                                    <Trash2 size={16}/>
+                                </Button>
+                            </Tooltip>
+                        </div>
                     </div>
-                    <div className="mt-4 flex gap-4">
+                    <div className="mt-4 pt-4 border-t border-gray-800 flex gap-2 overflow-x-auto no-scrollbar relative z-10">
                          {session.leaderboardTop3.map((t, i) => (
-                             <div key={i} className="flex items-center gap-2 bg-black/30 px-3 py-1 rounded-full text-sm">
-                                 <span className={`font-bold ${i===0 ? 'text-yellow-500' : i===1 ? 'text-gray-400' : 'text-orange-500'}`}>{i+1}º</span>
-                                 <span className="text-gray-300">{t.name}</span>
-                                 <span className="text-primary font-bold text-xs">{t.points}pts</span>
+                             <div key={i} className="flex items-center gap-2 bg-black/40 border border-gray-800 px-3 py-1.5 rounded-full text-xs shrink-0">
+                                 <span className={`font-bold ${i===0 ? 'text-yellow-500' : i===1 ? 'text-gray-400' : 'text-orange-500'}`}>#{i+1}</span>
+                                 <span className="text-gray-300 font-semibold">{t.name}</span>
+                                 <span className="text-primary font-mono">{t.points}pts</span>
                              </div>
                          ))}
                     </div>
                 </div>
             ))}
             {savedTrainings.length === 0 && (
-                <div className="text-center py-12 bg-panel border border-theme border-dashed rounded-xl">
-                    <div className="text-muted mb-2">Nenhum treino salvo encontrado.</div>
-                    <div className="text-sm text-gray-500">Salve seus treinos na tela de Resultados para vê-los aqui.</div>
+                <div className="flex flex-col items-center justify-center py-16 bg-panel border border-theme border-dashed rounded-xl opacity-70">
+                    <div className="bg-gray-800/50 p-4 rounded-full mb-4">
+                        <Save size={32} className="text-muted"/>
+                    </div>
+                    <div className="text-muted font-medium mb-1">Nenhum treino salvo encontrado</div>
+                    <div className="text-xs text-gray-500 max-w-xs text-center">Para ver seus treinos aqui, clique em "Publicar no Hub" na tela de Resultados após finalizar uma sessão.</div>
                 </div>
             )}
         </div>
@@ -1513,9 +1607,15 @@ function MainApp() {
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-2xl font-display font-bold">DEFINIÇÃO DE CALLS</h2>
                     <div className="flex gap-2">
-                        <Button variant="ghost" onClick={handleImportClick}><UploadCloud size={18}/> Importar</Button>
-                        <Button variant="ghost" onClick={handleExportStrategy}><Download size={18}/> Exportar JSON</Button>
-                        <Button variant="secondary" onClick={downloadStrategyImage}><Image size={18}/> Baixar Imagem</Button>
+                        <Tooltip content="Importar estratégia salva (JSON)">
+                            <Button variant="ghost" onClick={handleImportClick}><UploadCloud size={18}/> Importar</Button>
+                        </Tooltip>
+                        <Tooltip content="Salvar estratégia em arquivo">
+                            <Button variant="ghost" onClick={handleExportStrategy}><Download size={18}/> Exportar JSON</Button>
+                        </Tooltip>
+                        <Tooltip content="Baixar imagem das calls">
+                            <Button variant="secondary" onClick={downloadStrategyImage}><Image size={18}/> Baixar Imagem</Button>
+                        </Tooltip>
                         <Button onClick={() => setStep(Step.SCORING)}>PONTUAÇÃO <ArrowRight size={18}/></Button>
                     </div>
                 </div>
@@ -1602,7 +1702,7 @@ function MainApp() {
         );
     };
 
-    const renderScoring = () => {
+  const renderScoring = () => {
         const currentMaps = shuffledMaps.length > 0 ? shuffledMaps : MAPS.map(m => m.id);
         const activeMapId = currentMaps[currentMatchTab];
         const activeMapData = MAPS.find(m => m.id === activeMapId);
@@ -1661,24 +1761,28 @@ function MainApp() {
                                      <div className="flex gap-2">
                                          <div className="flex-1">
                                              <label className="text-[10px] text-muted uppercase font-bold">Rank #</label>
-                                             <input 
-                                                 type="number" 
-                                                 min="1" 
-                                                 max="12"
-                                                 value={score.rank} 
-                                                 onChange={(e) => handleScoreChange(currentMatchTab, team.id, 'rank', e.target.value)}
-                                                 className="w-full bg-black border border-gray-700 rounded p-2 text-center font-bold outline-none focus:border-primary"
-                                             />
+                                             <Tooltip content="Colocação (1-12)">
+                                                <input 
+                                                    type="number" 
+                                                    min="1" 
+                                                    max="12"
+                                                    value={score.rank} 
+                                                    onChange={(e) => handleScoreChange(currentMatchTab, team.id, 'rank', e.target.value)}
+                                                    className="w-full bg-black border border-gray-700 rounded p-2 text-center font-bold outline-none focus:border-primary"
+                                                />
+                                             </Tooltip>
                                          </div>
                                          <div className="flex-1">
                                              <label className="text-[10px] text-muted uppercase font-bold">Kills</label>
-                                             <input 
-                                                 type="number" 
-                                                 min="0"
-                                                 value={score.kills}
-                                                 onChange={(e) => handleScoreChange(currentMatchTab, team.id, 'kills', e.target.value)}
-                                                 className="w-full bg-black border border-gray-700 rounded p-2 text-center font-bold outline-none focus:border-primary"
-                                             />
+                                             <Tooltip content="Kills totais">
+                                                <input 
+                                                    type="number" 
+                                                    min="0"
+                                                    value={score.kills}
+                                                    onChange={(e) => handleScoreChange(currentMatchTab, team.id, 'kills', e.target.value)}
+                                                    className="w-full bg-black border border-gray-700 rounded p-2 text-center font-bold outline-none focus:border-primary"
+                                                />
+                                             </Tooltip>
                                          </div>
                                      </div>
                                  </div>
@@ -1811,60 +1915,68 @@ function MainApp() {
         <div className="flex flex-col items-center w-full max-w-6xl mx-auto p-4 md:p-8">
             <h2 className="text-3xl font-display font-bold mb-8">RELATÓRIO & COMPARTILHAMENTO</h2>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full h-full">
+            <div className="flex flex-col lg:flex-row gap-8 w-full h-full min-h-[500px]">
                 {/* Visual Preview */}
-                <div className="bg-panel border border-theme rounded-xl p-6 flex flex-col gap-4 overflow-y-auto max-h-[600px] custom-scrollbar">
-                    <h3 className="font-bold text-muted uppercase text-sm tracking-wider">Visualização do Relatório</h3>
-                    
-                    {currentMaps.map((mid, idx) => {
-                        const mName = MAPS.find(x => x.id === mid)?.name;
-                        return (
-                            <div key={idx} className="bg-black/40 border border-gray-800 rounded-lg p-4">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <span className="bg-primary text-black text-xs font-bold px-2 py-1 rounded">QUEDA {idx+1}</span>
-                                    <span className="font-bold text-white">{mName}</span>
-                                </div>
-                                <div className="space-y-1">
-                                    {teams.map(t => {
-                                        const call = mode === 'basic' ? (basicSelections[mid]?.[t.id] || 'Livre') : 'Ver Mapa';
-                                        return (
-                                            <div key={t.id} className="flex items-center justify-between text-sm text-gray-400 border-b border-gray-800/50 pb-1 last:border-0">
-                                                <div className="flex items-center gap-2">
-                                                    {t.logo && <img src={t.logo} className="w-4 h-4 rounded-full"/>}
-                                                    <span className="text-gray-300">{t.name}</span>
+                <div className="flex-1 bg-panel border border-theme rounded-xl overflow-hidden flex flex-col shadow-xl">
+                    <div className="bg-black/50 p-4 border-b border-theme flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <Eye size={18} className="text-primary"/>
+                            <span className="font-bold text-sm uppercase tracking-wider">Visualização</span>
+                        </div>
+                    </div>
+                    <div className="p-6 overflow-y-auto max-h-[600px] custom-scrollbar space-y-4">
+                        {currentMaps.map((mid, idx) => {
+                            const mName = MAPS.find(x => x.id === mid)?.name;
+                            return (
+                                <div key={idx} className="bg-black/30 border border-gray-800 rounded-lg p-4">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <span className="bg-primary text-black text-xs font-bold px-2 py-1 rounded">QUEDA {idx+1}</span>
+                                        <span className="font-bold text-white uppercase">{mName}</span>
+                                    </div>
+                                    <div className="space-y-1">
+                                        {teams.map(t => {
+                                            const call = mode === 'basic' ? (basicSelections[mid]?.[t.id] || 'Livre') : 'Ver Mapa';
+                                            return (
+                                                <div key={t.id} className="flex items-center justify-between text-sm text-gray-400 border-b border-gray-800/30 pb-1 last:border-0">
+                                                    <div className="flex items-center gap-2">
+                                                        {t.logo && <img src={t.logo} className="w-4 h-4 rounded-full"/>}
+                                                        <span className="text-gray-300 font-medium">{t.name}</span>
+                                                    </div>
+                                                    <span className="font-mono text-primary text-xs">{call}</span>
                                                 </div>
-                                                <span className="font-mono text-primary">{call}</span>
-                                            </div>
-                                        )
-                                    })}
+                                            )
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
-                        )
-                    })}
+                            )
+                        })}
+                    </div>
                 </div>
 
                 {/* Actions & Raw Text */}
-                <div className="flex flex-col gap-4">
-                    <div className="bg-panel border border-theme rounded-xl p-6 flex-1 flex flex-col">
+                <div className="lg:w-1/3 flex flex-col gap-4">
+                    <div className="bg-panel border border-theme rounded-xl p-4 flex-1 flex flex-col shadow-xl">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold text-muted uppercase text-sm tracking-wider">Texto para WhatsApp</h3>
-                            <div className="flex gap-2">
-                                <Button size="sm" variant="secondary" onClick={copyToClipboard}><Copy size={16}/></Button>
-                            </div>
+                            <h3 className="font-bold text-muted uppercase text-xs tracking-wider flex items-center gap-2"><FileText size={14}/> Texto Formatado</h3>
+                            <Tooltip content="Copiar texto cru">
+                                <button onClick={copyToClipboard} className="text-muted hover:text-white"><Copy size={16}/></button>
+                            </Tooltip>
                         </div>
                         <textarea 
                             readOnly 
-                            className="w-full flex-1 bg-black/50 border border-gray-800 rounded-lg p-4 font-mono text-xs text-gray-300 resize-none focus:outline-none focus:border-primary"
+                            className="w-full flex-1 bg-[#050505] border border-gray-800 rounded-lg p-4 font-mono text-[10px] text-green-400 resize-none focus:outline-none focus:border-primary custom-scrollbar leading-relaxed"
                             value={generateReportText()}
                         />
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
-                        <Button onClick={copyToClipboard} variant="secondary" className="w-full">
-                            <Copy size={18}/> COPIAR
+                    <div className="grid grid-cols-1 gap-3">
+                        <Button onClick={copyToClipboard} variant="secondary" className="w-full justify-between group">
+                            <span className="flex items-center gap-2"><Copy size={18}/> Copiar Relatório</span>
+                            <span className="text-xs bg-gray-800 px-2 py-1 rounded text-gray-400 group-hover:text-white">Ctrl+C</span>
                         </Button>
-                        <Button onClick={handleWhatsAppShare} className="w-full bg-green-600 hover:bg-green-500 text-white border-none shadow-lg shadow-green-900/20">
-                            <MessageCircle size={18}/> ENVIAR NO ZAP
+                        <Button onClick={handleWhatsAppShare} className="w-full bg-green-600 hover:bg-green-500 text-white border-none shadow-lg shadow-green-900/20 justify-between">
+                            <span className="flex items-center gap-2"><MessageCircle size={18} fill="currentColor"/> Enviar no WhatsApp</span>
+                            <ArrowRight size={16}/>
                         </Button>
                     </div>
                 </div>
@@ -1892,17 +2004,21 @@ function MainApp() {
                     MVP & STATS
                 </button>
             </div>
-            <Button variant="secondary" onClick={() => setShowSocialBanner(true)} className="text-pink-500 border-pink-500/30 hover:bg-pink-500/10">
-                <Instagram size={18}/> Banner Social
-            </Button>
-            <Button variant="secondary" onClick={saveToHub} className="text-blue-400 border-blue-400/30 hover:bg-blue-400/10">
-                <Globe size={18}/> Publicar no Hub
-            </Button>
+            <Tooltip content="Gerar imagem para Instagram">
+                <Button variant="secondary" onClick={() => setShowSocialBanner(true)} className="text-pink-500 border-pink-500/30 hover:bg-pink-500/10">
+                    <Instagram size={18}/> Banner Social
+                </Button>
+            </Tooltip>
+            <Tooltip content="Salvar no histórico local">
+                <Button variant="secondary" onClick={saveToHub} className="text-blue-400 border-blue-400/30 hover:bg-blue-400/10">
+                    <Globe size={18}/> Publicar no Hub
+                </Button>
+            </Tooltip>
         </div>
 
         <div className="w-full bg-panel border border-theme rounded-xl overflow-hidden mb-8 min-h-[400px]">
             {dashboardTab === 'leaderboard' ? (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto custom-scrollbar">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-black/40 text-xs text-muted uppercase font-bold border-b border-gray-800">
@@ -1957,7 +2073,7 @@ function MainApp() {
                     </table>
                 </div>
             ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto custom-scrollbar">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-black/40 text-xs text-muted uppercase font-bold border-b border-gray-800">
@@ -1998,9 +2114,11 @@ function MainApp() {
         <div className="flex flex-col md:flex-row gap-4 justify-between w-full">
              <Button variant="secondary" onClick={() => setStep(Step.SCORING)}><ArrowLeft size={18}/> Corrigir Pontos</Button>
              <div className="flex gap-4">
-                 <Button onClick={() => setStep(Step.VIEWER)} className="bg-purple-600 hover:bg-purple-500 text-white border-none shadow-lg shadow-purple-900/20">
-                     <Monitor size={18}/> MODO LEITURA
-                 </Button>
+                 <Tooltip content="Modo tela cheia para transmissão">
+                    <Button onClick={() => setStep(Step.VIEWER)} className="bg-purple-600 hover:bg-purple-500 text-white border-none shadow-lg shadow-purple-900/20">
+                        <Monitor size={18}/> MODO LEITURA
+                    </Button>
+                 </Tooltip>
                  <Button onClick={() => setStep(Step.REPORT)} className="shadow-lg shadow-primary/20">
                      GERAR RELATÓRIO <ArrowRight size={18}/>
                  </Button>
@@ -2013,17 +2131,40 @@ function MainApp() {
     <div className={`min-h-screen bg-background text-main font-sans selection:bg-primary selection:text-black pb-20 md:pb-0 ${isDarkMode ? 'dark' : ''}`}>
       <ErrorBoundary>
         <div className="fixed top-4 right-4 z-50 no-print flex gap-2 bg-panel/80 backdrop-blur-md p-2 rounded-xl border border-theme shadow-lg items-center">
-            {step !== Step.HOME && step !== Step.VIEWER && <Button variant="ghost" size="sm" onClick={handleBack} className="!p-2"><ArrowLeft size={18} /></Button>}
-            {step !== Step.HOME && step !== Step.VIEWER && <Button variant="ghost" size="sm" onClick={handleHome} className="!p-2"><Home size={18} /></Button>}
-            {step !== Step.HOME && step !== Step.VIEWER && <Button variant="ghost" size="sm" onClick={saveDraft} className="!p-2 text-yellow-500" title="Salvar Rascunho"><Save size={18} /></Button>}
+            {step !== Step.HOME && step !== Step.VIEWER && 
+                <Tooltip content="Voltar" position="bottom">
+                    <Button variant="ghost" size="sm" onClick={handleBack} className="!p-2"><ArrowLeft size={18} /></Button>
+                </Tooltip>
+            }
+            {step !== Step.HOME && step !== Step.VIEWER && 
+                <Tooltip content="Ir para Início" position="bottom">
+                    <Button variant="ghost" size="sm" onClick={handleHome} className="!p-2"><Home size={18} /></Button>
+                </Tooltip>
+            }
+            {step !== Step.HOME && step !== Step.VIEWER && 
+                <Tooltip content="Salvar Rascunho" position="bottom">
+                    <Button variant="ghost" size="sm" onClick={saveDraft} className="!p-2 text-yellow-500"><Save size={18} /></Button>
+                </Tooltip>
+            }
             
-            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-lg hover:bg-background text-muted hover:text-main transition-colors">
-                 {isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
-            </button>
+            <Tooltip content="Ajuda" position="bottom">
+                <button onClick={() => setShowHelp(true)} className="p-2 rounded-lg hover:bg-background text-muted hover:text-main transition-colors">
+                    <HelpCircle size={18} />
+                </button>
+            </Tooltip>
+
+            <Tooltip content={isDarkMode ? "Modo Claro" : "Modo Escuro"} position="bottom">
+                <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-lg hover:bg-background text-muted hover:text-main transition-colors">
+                    {isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
+                </button>
+            </Tooltip>
+
             <div className="group relative">
-             <button className="p-2 rounded-lg hover:bg-background text-muted hover:text-main transition-colors">
-               <Palette size={18}/>
-             </button>
+             <Tooltip content="Alterar Tema" position="bottom">
+                <button className="p-2 rounded-lg hover:bg-background text-muted hover:text-main transition-colors">
+                <Palette size={18}/>
+                </button>
+             </Tooltip>
              <div className="absolute right-0 top-full mt-2 bg-panel border border-theme rounded-lg p-2 hidden group-hover:flex flex-col gap-2 shadow-xl min-w-[120px]">
                 <span className="text-xs text-muted font-bold px-2 uppercase">Cor Destaque</span>
                 {THEMES.map(theme => (
@@ -2046,7 +2187,7 @@ function MainApp() {
         {renderSocialBanner()}
 
         {step === Step.VIEWER ? renderViewer() : (
-            <div className="pt-24 px-4 md:px-8 pb-12 w-full max-w-[1920px] mx-auto flex flex-col items-center h-full">
+            <div className={`w-full max-w-[1920px] mx-auto flex flex-col items-center h-full ${step !== Step.HOME ? 'pt-24 px-4 md:px-8 pb-12' : ''}`}>
                 {step !== Step.HOME && step !== Step.PUBLIC_HUB && step !== Step.WAITING_LIST && renderStepper()}
                 
                 {step === Step.HOME && renderHome()}
@@ -2066,4 +2207,4 @@ function MainApp() {
   );
 }
 
-export default MainApp;
+export default App;
