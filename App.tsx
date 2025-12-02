@@ -1,6 +1,6 @@
 import React, { Component, useState, useEffect, useMemo, ErrorInfo, useRef } from 'react';
-import { Users, Trophy, Crown, AlertTriangle, ArrowRight, ArrowLeft, Home, Download, RefreshCw, BarChart2, Save, Trash2, Edit2, Play, LayoutGrid, HelpCircle, X, Info, FileText, Instagram, Eye, Check, Palette, Monitor, Moon, Sun, Medal, Target, Flame, Share2, Calendar, Upload, ChevronLeft, ChevronRight, Maximize, Printer } from 'lucide-react';
-import { Team, TrainingMode, Step, MapData, MatchScore, ProcessedScore, Position, POINTS_SYSTEM } from './types';
+import { Users, Trophy, Crown, AlertTriangle, ArrowRight, ArrowLeft, Home, Download, RefreshCw, BarChart2, Save, Trash2, Edit2, Play, LayoutGrid, HelpCircle, X, Info, FileText, Instagram, Eye, Check, Palette, Monitor, Moon, Sun, Medal, Target, Flame, Share2, Calendar, Upload, ChevronLeft, ChevronRight, Maximize, Printer, UserPlus, ChevronDown, ChevronUp, Zap, UploadCloud, Binary } from 'lucide-react';
+import { Team, TrainingMode, Step, MapData, MatchScore, ProcessedScore, Position, POINTS_SYSTEM, PlayerStats } from './types';
 import { MAPS, WARNINGS } from './constants';
 import { Button } from './components/Button';
 import { DraggableMap } from './components/DraggableMap';
@@ -21,6 +21,23 @@ const TEAM_COLORS = [
     '#E056FD', '#22A6B3', '#F0932B', '#6AB04C', '#EB4D4B'
 ];
 
+// Replay Data Interfaces
+interface ReplayEvent {
+    Event: number;
+    Time: number;
+    SParam?: string; // String Parameter (Player/Team Name)
+    FParam?: number; // Float Parameter (Damage amount, etc)
+}
+
+interface PlayerAnalysis {
+    name: string;
+    teamTag: string;
+    kills: number;
+    damage: number;
+    firstEventTime: number;
+    lastEventTime: number;
+}
+
 // Error Boundary Component
 interface ErrorBoundaryProps {
   children?: React.ReactNode;
@@ -32,13 +49,10 @@ interface ErrorBoundaryState {
 }
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = {
-      hasError: false,
-      error: null
-    };
-  }
+  public state: ErrorBoundaryState = {
+    hasError: false,
+    error: null
+  };
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
@@ -70,7 +84,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       );
     }
 
-    return this.props.children;
+    return (this.props as any).children;
   }
 }
 
@@ -89,6 +103,7 @@ function MainApp() {
   const [teamToDelete, setTeamToDelete] = useState<string | null>(null);
   const [showStrategyVisualizer, setShowStrategyVisualizer] = useState(false);
   const [showSocialBanner, setShowSocialBanner] = useState(false);
+  const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null); // For scoring details
   
   // Strategy State
   const [shuffledMaps, setShuffledMaps] = useState<string[]>([]);
@@ -101,9 +116,13 @@ function MainApp() {
   // Scoring State
   const [matchScores, setMatchScores] = useState<Record<number, Record<string, MatchScore>>>({});
   const [currentMatchTab, setCurrentMatchTab] = useState(0);
+  const replayInputRef = useRef<HTMLInputElement>(null);
+  
+  // Extended Stats for Premium Plus
+  const [playerExtendedStats, setPlayerExtendedStats] = useState<Record<string, PlayerAnalysis>>({});
 
   // Dashboard State
-  const [dashboardTab, setDashboardTab] = useState<'leaderboard' | 'strategy'>('leaderboard');
+  const [dashboardTab, setDashboardTab] = useState<'leaderboard' | 'mvp'>('leaderboard');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Viewer Mode State
@@ -162,9 +181,10 @@ function MainApp() {
   const addTeam = () => {
     if (newTeamName.trim() && teams.length < 15) {
       setTeams([...teams, { 
-          id: Date.now().toString(), 
+          id: `${Date.now()}${Math.random()}`, 
           name: newTeamName.trim(),
-          color: getRandomColor()
+          color: getRandomColor(),
+          players: []
       }]);
       setNewTeamName('');
     }
@@ -189,8 +209,30 @@ function MainApp() {
       setTeams(teams.map(t => t.id === id ? { ...t, color: newColor } : t));
   }
 
+  const addPlayerToTeam = (teamId: string, playerName: string) => {
+      if(!playerName.trim()) return;
+      setTeams(prev => prev.map(t => {
+          if(t.id === teamId && t.players.length < 6) {
+              return { ...t, players: [...t.players, playerName.trim()] };
+          }
+          return t;
+      }));
+  }
+
+  const removePlayerFromTeam = (teamId: string, playerIndex: number) => {
+      setTeams(prev => prev.map(t => {
+          if(t.id === teamId) {
+              const newPlayers = [...t.players];
+              newPlayers.splice(playerIndex, 1);
+              return { ...t, players: newPlayers };
+          }
+          return t;
+      }));
+  }
+
   const goToSort = () => {
-    if (teams.length === 0) return;
+    // Premium Plus allows skipping manual team entry
+    if (teams.length === 0 && mode !== 'premium_plus') return;
     setStep(Step.MAP_SORT);
   };
 
@@ -311,7 +353,7 @@ function MainApp() {
     
     setMatchScores(prev => {
       const matchData = prev[matchIdx] || {};
-      const teamData = matchData[teamId] || { teamId, rank: '', kills: '' };
+      const teamData = matchData[teamId] || { teamId, rank: '', kills: '', playerKills: {} };
       
       const newTeamData = { ...teamData, [field]: val };
       
@@ -323,6 +365,212 @@ function MainApp() {
         }
       };
     });
+  };
+
+  const handlePlayerKillChange = (matchIdx: number, teamId: string, playerName: string, kills: string) => {
+    const val = kills === '' ? 0 : parseInt(kills);
+    
+    setMatchScores(prev => {
+        const matchData = prev[matchIdx] || {};
+        const teamData: MatchScore = matchData[teamId] || { teamId, rank: '', kills: 0, playerKills: {} };
+        const currentPlayerKills = { ...teamData.playerKills, [playerName]: val };
+        
+        // Sum individual kills for total team kills
+        const totalKills = Object.values(currentPlayerKills).reduce((a: number, b: number) => a + b, 0);
+
+        return {
+            ...prev,
+            [matchIdx]: {
+                ...matchData,
+                [teamId]: {
+                    ...teamData,
+                    playerKills: currentPlayerKills,
+                    kills: totalKills // Auto-update total kills
+                }
+            }
+        };
+    });
+  };
+
+  // --- PREMIUM PLUS: REPLAY READING ---
+  const handleReplayUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if(!file || !currentMatchTab) {
+        if(!currentMatchTab) alert("Selecione uma Queda (Aba) antes de enviar o replay.");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const json = JSON.parse(e.target?.result as string);
+            processReplayData(json);
+        } catch (error) {
+            alert("Erro ao ler arquivo. Verifique se é um JSON válido de replay.");
+            console.error(error);
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  };
+
+  const processReplayData = (data: { Events: ReplayEvent[] }) => {
+    if (!data.Events || !Array.isArray(data.Events)) {
+        alert("Formato de replay inválido: Lista de eventos não encontrada.");
+        return;
+    }
+
+    // 1. Initialize Aggregators
+    const players: Record<string, PlayerAnalysis> = {};
+    const teamPlacement: {name: string, time: number}[] = [];
+
+    // Helper to get or create player entry
+    const getPlayer = (name: string) => {
+        if (!players[name]) {
+            // Extract Team Tag (Assuming format TAG.PLAYER or TAG PLAYER)
+            // If no separator, assign to 'NO_TAG'
+            const parts = name.split(/[. ]/);
+            const tag = parts.length > 1 ? parts[0] : (name.length > 3 ? name.substring(0, 3) : "SOLO");
+            
+            players[name] = {
+                name,
+                teamTag: tag,
+                kills: 0,
+                damage: 0,
+                firstEventTime: Infinity,
+                lastEventTime: 0
+            };
+        }
+        return players[name];
+    };
+
+    // Helper to update event times for MVP calc
+    const updateTime = (name: string, time: number) => {
+        const p = getPlayer(name);
+        if (time < p.firstEventTime) p.firstEventTime = time;
+        if (time > p.lastEventTime) p.lastEventTime = time;
+    };
+
+    // 2. Process Events
+    data.Events.forEach(e => {
+        // Event 1: Team Elimination/Finished
+        if (e.Event === 1 && e.SParam) {
+            teamPlacement.push({ name: e.SParam, time: e.Time });
+        }
+
+        // Event 2: Damage
+        // SParam: Attacker Name, FParam: Damage Amount
+        if (e.Event === 2 && e.SParam && e.FParam) {
+            const p = getPlayer(e.SParam);
+            p.damage += e.FParam;
+            updateTime(e.SParam, e.Time);
+        }
+
+        // Event 4: Kill
+        // SParam: Killer Name
+        if (e.Event === 4 && e.SParam) {
+            const p = getPlayer(e.SParam);
+            p.kills += 1;
+            updateTime(e.SParam, e.Time);
+        }
+    });
+
+    // 3. Process Teams (Auto-Registration if needed)
+    let currentTeams = [...teams];
+    const uniqueTags = new Set(Object.values(players).map(p => p.teamTag));
+
+    // Ensure teams exist
+    uniqueTags.forEach(tag => {
+        if (!currentTeams.find(t => t.name === tag)) {
+            if (currentTeams.length < 15) {
+                currentTeams.push({
+                    id: `${Date.now()}_${tag}`,
+                    name: tag,
+                    color: getRandomColor(),
+                    players: []
+                });
+            }
+        }
+    });
+
+    // Ensure players are in teams
+    Object.values(players).forEach(p => {
+        const team = currentTeams.find(t => t.name === p.teamTag);
+        if (team && !team.players.includes(p.name) && team.players.length < 6) {
+            team.players.push(p.name);
+        }
+    });
+
+    setTeams(currentTeams);
+
+    // 4. Calculate Scores & Ranks
+    // Sort team placement by time desc (Last one to die is first)
+    // Note: Replay structure varies. Usually Event 1 logs when a team is OUT.
+    // The winner might not have an Event 1, or is the last one.
+    // Let's assume the provided Event 1 list contains eliminated teams.
+    // Winner is either the one not in the list, or the last one in list if format logs everyone.
+    // Logic: Sort by Time. Last time = 2nd place (usually). 
+    // We will assume standard BR logic: List of eliminations.
+    // Rank = (Total Teams - Index in Sorted List).
+    
+    // Sort by Time (Earliest time = First eliminated = Last place)
+    teamPlacement.sort((a, b) => a.time - b.time); 
+    
+    const newScores: Record<string, MatchScore> = { ...matchScores[currentMatchTab] };
+
+    currentTeams.forEach(team => {
+        // Find if team was eliminated
+        const elimIndex = teamPlacement.findIndex(tp => tp.name === team.name || team.name.includes(tp.name));
+        
+        let rank: number | '' = '';
+        if (elimIndex !== -1) {
+            // If 12 teams, and this is the first elimination (index 0), rank is 12.
+            // But we don't know total teams exactly. Let's assume 12 for Free Fire standard, or count identified teams.
+            const totalTeams = Math.max(12, currentTeams.length);
+            rank = totalTeams - elimIndex;
+        } else {
+            // Not eliminated? Maybe Booyah (Rank 1).
+            // Only assign Rank 1 if they have active players/stats.
+            const hasStats = Object.values(players).some(p => p.teamTag === team.name);
+            if (hasStats) rank = 1;
+        }
+
+        // Aggregate Kills
+        let teamKills = 0;
+        const playerKillsMap: Record<string, number> = {};
+
+        team.players.forEach(pName => {
+            const pData = players[pName];
+            if (pData) {
+                teamKills += pData.kills;
+                playerKillsMap[pName] = pData.kills;
+            }
+        });
+
+        newScores[team.id] = {
+            teamId: team.id,
+            rank: typeof rank === 'number' ? rank : '',
+            kills: teamKills,
+            playerKills: playerKillsMap
+        };
+    });
+
+    // 5. Update State
+    setMatchScores(prev => ({
+        ...prev,
+        [currentMatchTab]: newScores
+    }));
+
+    // Update Extended Stats for MVP view
+    setPlayerExtendedStats(prev => {
+        const newStats = { ...prev };
+        Object.values(players).forEach(p => {
+             newStats[p.name] = p;
+        });
+        return newStats;
+    });
+
+    alert("Replay processado com sucesso! Dados atualizados.");
   };
 
   const leaderboard = useMemo(() => {
@@ -388,6 +636,75 @@ function MainApp() {
     }).map((s, i) => ({ ...s, rank: i + 1 }));
   }, [teams, matchScores]);
 
+  const playerStats = useMemo(() => {
+      const pStats: Record<string, PlayerStats> = {};
+      
+      teams.forEach(team => {
+          team.players.forEach(pName => {
+              pStats[pName] = {
+                  name: pName,
+                  teamName: team.name,
+                  teamColor: team.color,
+                  totalKills: 0,
+                  matchesPlayed: 0,
+                  totalDamage: 0,
+                  timeAlive: 0,
+                  mvpScore: 0
+              };
+          });
+      });
+
+      // Integrate Replay Analysis Data if available
+      Object.values(playerExtendedStats).forEach((analysis: PlayerAnalysis) => {
+          // Find or create
+          if (!pStats[analysis.name]) {
+               const team = teams.find(t => t.name === analysis.teamTag);
+               pStats[analysis.name] = {
+                   name: analysis.name,
+                   teamName: analysis.teamTag,
+                   teamColor: team?.color || '#fff',
+                   totalKills: 0,
+                   matchesPlayed: 0,
+                   totalDamage: 0,
+                   timeAlive: 0,
+                   mvpScore: 0
+               };
+          }
+
+          const p = pStats[analysis.name];
+          // Accumulate stats from analysis state (which represents latest parse)
+          // Ideally, playerExtendedStats should be per match, but for simplicity we treat it as aggregate or latest update
+          // MVP_SCORE = (Kills * 3) + (DanoTotal / 300) + (TempoVivo / 200)
+          
+          p.totalDamage = analysis.damage;
+          p.timeAlive = Math.max(0, analysis.lastEventTime - analysis.firstEventTime);
+          p.totalKills = analysis.kills; // Overwrite with precise replay data
+          
+          // MVP Formula
+          p.mvpScore = (p.totalKills * 3) + (p.totalDamage / 300) + (p.timeAlive / 200);
+      });
+      
+      // Fallback to manual entry if no replay data
+      if (Object.keys(playerExtendedStats).length === 0) {
+        Object.entries(matchScores).forEach(([matchIdx, scores]) => {
+            Object.values(scores).forEach(teamScore => {
+                if(teamScore.playerKills) {
+                    Object.entries(teamScore.playerKills).forEach(([pName, kills]) => {
+                        if(!pStats[pName]) {
+                             // Create partial record
+                        } else {
+                            pStats[pName].totalKills += (kills as number);
+                            pStats[pName].matchesPlayed += 1;
+                        }
+                    });
+                }
+            });
+        });
+      }
+
+      return Object.values(pStats).sort((a,b) => (b.mvpScore || 0) - (a.mvpScore || 0));
+  }, [teams, matchScores, playerExtendedStats]);
+
   // --- Render Functions ---
 
   const renderHome = () => (
@@ -426,10 +743,10 @@ function MainApp() {
   );
 
   const renderModeSelect = () => (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 animate-fade-in w-full max-w-5xl mx-auto">
+    <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 animate-fade-in w-full max-w-6xl mx-auto">
       <h2 className="text-3xl font-display font-bold mb-12 text-center">ESCOLHA O MODO DE OPERAÇÃO</h2>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full">
         {/* Basic Mode */}
         <div 
           onClick={() => selectMode('basic')}
@@ -468,16 +785,54 @@ function MainApp() {
           <div className="relative z-10">
             <div className="flex justify-between items-start mb-4">
                <h3 className="text-2xl font-bold flex items-center gap-3">
-                 <Target className="text-primary" /> MODO PREMIUM
+                 <Target className="text-primary" /> PREMIUM
                </h3>
-               <span className="bg-gradient-to-r from-yellow-600 to-yellow-400 text-black text-xs font-bold px-2 py-1 rounded">RECOMENDADO</span>
+               <span className="bg-gradient-to-r from-yellow-600 to-yellow-400 text-black text-xs font-bold px-2 py-1 rounded">DRAG & DROP</span>
             </div>
             <ul className="space-y-3 mb-8 text-muted">
-              <li className="flex items-center gap-2"><Check size={16} className="text-green-500"/> Mapa Interativo (Drag & Drop)</li>
-              <li className="flex items-center gap-2"><Check size={16} className="text-green-500"/> Zoom e Precisão</li>
+              <li className="flex items-center gap-2"><Check size={16} className="text-green-500"/> Mapa Interativo</li>
+              <li className="flex items-center gap-2"><Check size={16} className="text-green-500"/> Arraste os times na call</li>
               <li className="flex items-center gap-2"><Check size={16} className="text-green-500"/> Visualização Profissional</li>
             </ul>
             <Button variant={mode === 'premium' ? 'primary' : 'secondary'} className="w-full">SELECIONAR PREMIUM</Button>
+          </div>
+        </div>
+
+        {/* Premium Plus Mode */}
+        <div 
+          onClick={() => selectMode('premium_plus')}
+          className={`
+            cursor-pointer group relative overflow-hidden rounded-2xl border-2 p-8 transition-all duration-300
+            ${mode === 'premium_plus' ? 'border-[#FFD400] bg-gray-900 shadow-[0_0_40px_rgba(255,212,0,0.2)]' : 'border-gray-700 bg-background hover:border-[#FFD400]/50'}
+          `}
+        >
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-[#FFD400]">
+            <Zap size={120} />
+          </div>
+          <div className="relative z-10">
+            <div className="flex justify-between items-start mb-2">
+               <h3 className="text-2xl font-bold flex items-center gap-2 text-white">
+                 PREMIUM PLUS
+               </h3>
+               <span className="bg-[#FFD400] text-black text-xs font-bold px-2 py-1 rounded animate-pulse">NOVO</span>
+            </div>
+            
+            <div className="text-[#FFD400] font-bold text-sm mb-6 flex items-center gap-2 uppercase tracking-wide">
+                🔥 Leitura de Replay
+            </div>
+
+            <ul className="space-y-3 mb-8 text-sm text-gray-300">
+              <li className="flex items-center gap-2"><Check size={16} className="text-[#FFD400]"/> Importação de arquivos (.json)</li>
+              <li className="flex items-center gap-2"><Check size={16} className="text-[#FFD400]"/> Análise de Kills / Dano / MVP</li>
+              <li className="flex items-center gap-2"><Check size={16} className="text-[#FFD400]"/> Detecção de ordem de eliminação</li>
+              <li className="flex items-center gap-2"><Check size={16} className="text-[#FFD400]"/> Processamento Inteligente</li>
+            </ul>
+            <Button 
+                variant="primary" 
+                className={`w-full ${mode === 'premium_plus' ? 'bg-[#FFD400] text-black hover:brightness-110' : 'bg-transparent border border-[#FFD400] text-[#FFD400] hover:bg-[#FFD400] hover:text-black'}`}
+            >
+                SELECIONAR PREMIUM PLUS
+            </Button>
           </div>
         </div>
       </div>
@@ -531,11 +886,29 @@ function MainApp() {
                 <h2 className="text-2xl font-display font-bold">PONTUAÇÃO DAS QUEDAS</h2>
                 <p className="text-muted text-sm">Insira os resultados de cada partida</p>
              </div>
-             <div className="flex gap-2">
+             <div className="flex gap-2 items-center">
+                 {mode === 'premium_plus' && (
+                    <div className="relative">
+                        <input 
+                            type="file" 
+                            accept=".json" 
+                            className="hidden" 
+                            ref={replayInputRef}
+                            onChange={handleReplayUpload}
+                        />
+                        <Button 
+                            variant="primary" 
+                            className="bg-[#FFD400] text-black hover:bg-yellow-400"
+                            onClick={() => replayInputRef.current?.click()}
+                        >
+                             <UploadCloud size={18} /> UPLOAD REPLAY (.JSON)
+                        </Button>
+                    </div>
+                 )}
                  <Button variant="secondary" onClick={() => setStep(Step.DASHBOARD)}>
                      <BarChart2 size={18}/> RESULTADOS
                  </Button>
-                 <Button variant="primary" onClick={() => setStep(Step.REPORT)}>
+                 <Button variant="secondary" onClick={() => setStep(Step.REPORT)}>
                      <FileText size={18}/> RELATÓRIO
                  </Button>
              </div>
@@ -567,6 +940,7 @@ function MainApp() {
                      <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-background border-b border-theme text-xs uppercase text-muted">
+                                <th className="p-4 w-12"></th> {/* Expand Button */}
                                 <th className="p-4 w-16 text-center">#</th>
                                 <th className="p-4">TIME</th>
                                 <th className="p-4 w-32 text-center">POSIÇÃO</th>
@@ -578,11 +952,18 @@ function MainApp() {
                             {teams.map((team, idx) => {
                                 const score = matchScores[currentMatchTab]?.[team.id] || {};
                                 const rank = typeof score.rank === 'number' ? score.rank : '';
-                                const kills = typeof score.kills === 'number' ? score.kills : '';
-                                const pts = (typeof rank === 'number' ? (POINTS_SYSTEM[rank] || 0) : 0) + (typeof kills === 'number' ? kills : 0);
+                                const kills = typeof score.kills === 'number' ? score.kills : 0;
+                                const pts = (typeof rank === 'number' ? (POINTS_SYSTEM[rank] || 0) : 0) + kills;
+                                const isExpanded = expandedTeamId === team.id;
                                 
                                 return (
-                                    <tr key={team.id} className="hover:bg-background/50 transition-colors">
+                                    <React.Fragment key={team.id}>
+                                    <tr className="hover:bg-background/50 transition-colors">
+                                        <td className="p-2 text-center">
+                                            <button onClick={() => setExpandedTeamId(isExpanded ? null : team.id)} className="text-muted hover:text-primary">
+                                                {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                                            </button>
+                                        </td>
                                         <td className="p-3 text-center text-muted font-mono">{String(idx+1).padStart(2,'0')}</td>
                                         <td className="p-3 font-semibold text-main flex items-center gap-2">
                                             <div className="w-3 h-3 rounded-full" style={{backgroundColor: team.color}}></div>
@@ -611,6 +992,34 @@ function MainApp() {
                                         </td>
                                         <td className="p-3 text-right font-bold text-primary">{pts > 0 ? pts : '-'}</td>
                                     </tr>
+                                    {isExpanded && (
+                                        <tr className="bg-background/30">
+                                            <td colSpan={6} className="p-4 border-b border-theme/50">
+                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                                    {team.players.length > 0 ? (
+                                                        team.players.map(player => (
+                                                            <div key={player} className="flex items-center gap-2 bg-panel p-2 rounded border border-theme">
+                                                                <span className="text-sm font-bold flex-1 truncate" title={player}>{player}</span>
+                                                                <input 
+                                                                    type="number" 
+                                                                    placeholder="Kills"
+                                                                    className="w-16 bg-background border border-theme rounded px-1 py-0.5 text-center text-sm"
+                                                                    value={score.playerKills?.[player] || ''}
+                                                                    onChange={(e) => handlePlayerKillChange(currentMatchTab, team.id, player, e.target.value)}
+                                                                />
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="text-sm text-muted col-span-3">
+                                                            Nenhum jogador cadastrado para este time. Adicione jogadores no cadastro ou insira kills manualmente no total.
+                                                            {/* Allow manual entry of temporary players? For now, stick to registered. */}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                    </React.Fragment>
                                 )
                             })}
                         </tbody>
@@ -640,525 +1049,169 @@ function MainApp() {
                  </Button>
               </div>
           </div>
+          
+          {/* Dashboard Tabs */}
+          <div className="flex gap-4 mb-6 border-b border-theme">
+               <button 
+                  onClick={() => setDashboardTab('leaderboard')}
+                  className={`pb-2 px-4 font-bold transition-all border-b-2 ${dashboardTab === 'leaderboard' ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-white'}`}
+               >
+                   TABELA GERAL
+               </button>
+               <button 
+                  onClick={() => setDashboardTab('mvp')}
+                  className={`pb-2 px-4 font-bold transition-all border-b-2 ${dashboardTab === 'mvp' ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-white'}`}
+               >
+                   JOGADORES (MVP)
+               </button>
+          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-              {/* Leaderboard */}
-              <div className="lg:col-span-2 bg-panel rounded-xl border border-theme overflow-hidden shadow-theme">
-                  <div className="p-4 border-b border-theme bg-background/50 flex justify-between items-center">
-                      <h3 className="font-bold text-main flex items-center gap-2"><Trophy size={18} className="text-yellow-500"/> TABELA DE CLASSIFICAÇÃO</h3>
+          {dashboardTab === 'leaderboard' ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                  {/* Leaderboard */}
+                  <div className="lg:col-span-2 bg-panel rounded-xl border border-theme overflow-hidden shadow-theme">
+                      <div className="p-4 border-b border-theme bg-background/50 flex justify-between items-center">
+                          <h3 className="font-bold text-main flex items-center gap-2"><Trophy size={18} className="text-yellow-500"/> CLASSIFICAÇÃO</h3>
+                      </div>
+                      <div className="overflow-x-auto">
+                          <table className="w-full text-left">
+                              <thead>
+                                  <tr className="bg-background text-xs uppercase text-muted border-b border-theme">
+                                      <th className="p-3 text-center w-12">#</th>
+                                      <th className="p-3">TIME</th>
+                                      <th className="p-3 text-center">BOOYAH</th>
+                                      <th className="p-3 text-center">KILLS</th>
+                                      <th className="p-3 text-center font-bold text-main">TOTAL</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-800/30">
+                                  {leaderboard.map((team, idx) => {
+                                      const teamColor = teams.find(t => t.id === team.teamId)?.color || '#fff';
+                                      return (
+                                      <tr key={team.teamId} className={`
+                                          ${idx === 0 ? 'bg-yellow-500/10' : ''} 
+                                          ${idx === 1 ? 'bg-gray-400/10' : ''}
+                                          ${idx === 2 ? 'bg-orange-700/10' : ''}
+                                          hover:bg-primary/5 transition-colors
+                                      `}>
+                                          <td className="p-3 text-center font-mono font-bold">
+                                              {idx === 0 && <Crown size={14} className="inline text-yellow-500 mb-1"/>}
+                                              {idx + 1}
+                                          </td>
+                                          <td className="p-3 font-medium text-main">
+                                              <div className="flex items-center gap-2">
+                                                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: teamColor }}></div>
+                                                  {team.teamName}
+                                              </div>
+                                          </td>
+                                          <td className="p-3 text-center text-muted">{team.booyahs}</td>
+                                          <td className="p-3 text-center text-muted">{team.totalKills}</td>
+                                          <td className="p-3 text-center font-bold text-primary text-lg">{team.totalPoints}</td>
+                                      </tr>
+                                  )})}
+                              </tbody>
+                          </table>
+                      </div>
+                  </div>
+
+                  {/* Stats / Charts */}
+                  <div className="flex flex-col gap-6">
+                     {/* Top Fragger (Team with most kills) */}
+                     <div className="bg-panel rounded-xl border border-theme p-6">
+                        <h4 className="text-muted text-xs uppercase font-bold mb-4">TIME MAIS AGRESSIVO</h4>
+                        {(() => {
+                            const topKiller = [...leaderboard].sort((a,b) => b.totalKills - a.totalKills)[0];
+                            const topKillerTeam = topKiller ? teams.find(t => t.id === topKiller.teamId) : null;
+                            
+                            return topKiller ? (
+                                 <div className="text-center">
+                                     <div className="text-4xl font-black text-red-500 mb-1">{topKiller.totalKills}</div>
+                                     <div className="text-sm text-muted uppercase tracking-widest">KILLS TOTAIS</div>
+                                     <div className="mt-4 font-bold text-xl text-main flex items-center justify-center gap-2">
+                                         {topKillerTeam && <div className="w-4 h-4 rounded-full" style={{ backgroundColor: topKillerTeam.color }}></div>}
+                                         {topKiller.teamName}
+                                     </div>
+                                 </div>
+                            ) : <div className="text-center text-muted">Sem dados</div>
+                        })()}
+                     </div>
+
+                     {/* Chart */}
+                     <div className="bg-panel rounded-xl border border-theme p-4 flex-1 min-h-[200px]">
+                         <h4 className="text-muted text-xs uppercase font-bold mb-4">DISTRIBUIÇÃO DE PONTOS</h4>
+                         <ResponsiveContainer width="100%" height={200}>
+                             <BarChart data={leaderboard.slice(0,5)}>
+                                 <XAxis dataKey="teamName" hide />
+                                 <Tooltip 
+                                    contentStyle={{backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px'}}
+                                    cursor={{fill: 'rgba(255,255,255,0.05)'}}
+                                 />
+                                 <Bar dataKey="totalPoints" radius={[4, 4, 0, 0]}>
+                                     {leaderboard.slice(0,5).map((entry, index) => {
+                                         const tColor = teams.find(t => t.id === entry.teamId)?.color || 'var(--color-primary)';
+                                         return <Cell key={`cell-${index}`} fill={tColor} />;
+                                     })}
+                                 </Bar>
+                             </BarChart>
+                         </ResponsiveContainer>
+                     </div>
+                  </div>
+              </div>
+          ) : (
+              // Player Stats Tab (MVP)
+              <div className="bg-panel rounded-xl border border-theme overflow-hidden shadow-theme">
+                 <div className="p-4 border-b border-theme bg-background/50 flex justify-between items-center">
+                      <h3 className="font-bold text-main flex items-center gap-2"><Target size={18} className="text-red-500"/> MVP & ESTATÍSTICAS DE JOGADORES</h3>
                   </div>
                   <div className="overflow-x-auto">
                       <table className="w-full text-left">
                           <thead>
-                              <tr className="bg-background text-xs uppercase text-muted border-b border-theme">
-                                  <th className="p-3 text-center w-12">#</th>
+                               <tr className="bg-background text-xs uppercase text-muted border-b border-theme">
+                                  <th className="p-3 text-center w-16">RANK</th>
+                                  <th className="p-3">JOGADOR</th>
                                   <th className="p-3">TIME</th>
-                                  <th className="p-3 text-center">BOOYAH</th>
-                                  <th className="p-3 text-center">KILLS</th>
-                                  <th className="p-3 text-center font-bold text-main">TOTAL</th>
-                              </tr>
+                                  <th className="p-3 text-center">ABATES</th>
+                                  <th className="p-3 text-center text-orange-400">DANO</th>
+                                  <th className="p-3 text-center text-blue-400">TEMPO VIVO</th>
+                                  <th className="p-3 text-right text-green-400 font-bold">MVP SCORE</th>
+                               </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-800/30">
-                              {leaderboard.map((team, idx) => {
-                                  const teamColor = teams.find(t => t.id === team.teamId)?.color || '#fff';
-                                  return (
-                                  <tr key={team.teamId} className={`
-                                      ${idx === 0 ? 'bg-yellow-500/10' : ''} 
-                                      ${idx === 1 ? 'bg-gray-400/10' : ''}
-                                      ${idx === 2 ? 'bg-orange-700/10' : ''}
-                                      hover:bg-primary/5 transition-colors
-                                  `}>
-                                      <td className="p-3 text-center font-mono font-bold">
-                                          {idx === 0 && <Crown size={14} className="inline text-yellow-500 mb-1"/>}
-                                          {idx + 1}
+                              {playerStats.map((p, idx) => (
+                                  <tr key={`${p.teamName}-${p.name}`} className="hover:bg-primary/5 transition-colors">
+                                      <td className="p-3 text-center font-mono font-bold text-muted">
+                                        {idx === 0 && <span className="mr-1">🔥</span>}
+                                        #{idx + 1}
                                       </td>
-                                      <td className="p-3 font-medium text-main">
+                                      <td className="p-3 font-bold text-main">{p.name}</td>
+                                      <td className="p-3">
                                           <div className="flex items-center gap-2">
-                                              <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: teamColor }}></div>
-                                              {team.teamName}
+                                              <div className="w-2 h-2 rounded-full" style={{backgroundColor: p.teamColor}}></div>
+                                              <span className="text-sm text-muted">{p.teamName}</span>
                                           </div>
                                       </td>
-                                      <td className="p-3 text-center text-muted">{team.booyahs}</td>
-                                      <td className="p-3 text-center text-muted">{team.totalKills}</td>
-                                      <td className="p-3 text-center font-bold text-primary text-lg">{team.totalPoints}</td>
+                                      <td className="p-3 text-center font-bold text-white">{p.totalKills}</td>
+                                      <td className="p-3 text-center text-orange-400 font-mono">{p.totalDamage?.toLocaleString()}</td>
+                                      <td className="p-3 text-center text-blue-400 font-mono">{(p.timeAlive || 0).toFixed(0)}s</td>
+                                      <td className="p-3 text-right text-green-400 font-black font-mono text-lg">
+                                          {(p.mvpScore || 0).toFixed(1)}
+                                      </td>
                                   </tr>
-                              )})}
+                              ))}
+                              {playerStats.length === 0 && (
+                                  <tr>
+                                      <td colSpan={7} className="p-8 text-center text-muted">
+                                          Nenhum dado de jogador disponível. Cadastre jogadores ou faça upload de um Replay.
+                                      </td>
+                                  </tr>
+                              )}
                           </tbody>
                       </table>
                   </div>
               </div>
-
-              {/* Stats / Charts */}
-              <div className="flex flex-col gap-6">
-                 {/* Top Fragger (Team with most kills) */}
-                 <div className="bg-panel rounded-xl border border-theme p-6">
-                    <h4 className="text-muted text-xs uppercase font-bold mb-4">TIME MAIS AGRESSIVO</h4>
-                    {(() => {
-                        const topKiller = [...leaderboard].sort((a,b) => b.totalKills - a.totalKills)[0];
-                        const topKillerTeam = topKiller ? teams.find(t => t.id === topKiller.teamId) : null;
-                        
-                        return topKiller ? (
-                             <div className="text-center">
-                                 <div className="text-4xl font-black text-red-500 mb-1">{topKiller.totalKills}</div>
-                                 <div className="text-sm text-muted uppercase tracking-widest">KILLS TOTAIS</div>
-                                 <div className="mt-4 font-bold text-xl text-main flex items-center justify-center gap-2">
-                                     {topKillerTeam && <div className="w-4 h-4 rounded-full" style={{ backgroundColor: topKillerTeam.color }}></div>}
-                                     {topKiller.teamName}
-                                 </div>
-                             </div>
-                        ) : <div className="text-center text-muted">Sem dados</div>
-                    })()}
-                 </div>
-
-                 {/* Chart */}
-                 <div className="bg-panel rounded-xl border border-theme p-4 flex-1 min-h-[200px]">
-                     <h4 className="text-muted text-xs uppercase font-bold mb-4">DISTRIBUIÇÃO DE PONTOS</h4>
-                     <ResponsiveContainer width="100%" height={200}>
-                         <BarChart data={leaderboard.slice(0,5)}>
-                             <XAxis dataKey="teamName" hide />
-                             <Tooltip 
-                                contentStyle={{backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px'}}
-                                cursor={{fill: 'rgba(255,255,255,0.05)'}}
-                             />
-                             <Bar dataKey="totalPoints" radius={[4, 4, 0, 0]}>
-                                 {leaderboard.slice(0,5).map((entry, index) => {
-                                     const tColor = teams.find(t => t.id === entry.teamId)?.color || 'var(--color-primary)';
-                                     return <Cell key={`cell-${index}`} fill={tColor} />;
-                                 })}
-                             </Bar>
-                         </BarChart>
-                     </ResponsiveContainer>
-                 </div>
-              </div>
-          </div>
+          )}
       </div>
   );
-
-  const renderViewer = () => {
-    const currentMapOrder = shuffledMaps.length > 0 ? shuffledMaps : MAPS.map(m => m.id);
-
-    return (
-      <div className="fixed inset-0 z-[100] bg-black text-white overflow-y-auto animate-fade-in flex flex-col">
-         {/* Viewer Header */}
-         <div className="bg-[#111] border-b border-gray-800 p-4 px-8 flex justify-between items-center shrink-0">
-             <div className="flex items-center gap-4">
-                 <div className="w-3 h-3 rounded-full bg-red-600 animate-pulse"></div>
-                 <h1 className="text-xl md:text-2xl font-black uppercase tracking-wider">
-                    {trainingName} <span className="text-gray-500 font-medium text-sm ml-2">AO VIVO</span>
-                 </h1>
-             </div>
-             <Button variant="secondary" size="sm" onClick={() => setStep(Step.DASHBOARD)}>
-                SAIR DO MODO APRESENTAÇÃO <Maximize size={14}/>
-             </Button>
-         </div>
-
-         {/* Navigation Tabs */}
-         <div className="flex justify-center gap-4 p-4 shrink-0 bg-black/50 backdrop-blur">
-             <button 
-                onClick={() => setViewerTab('ranking')}
-                className={`px-8 py-3 rounded-full font-bold text-lg transition-all ${viewerTab === 'ranking' ? 'bg-primary text-black shadow-[0_0_20px_rgba(var(--color-primary),0.5)]' : 'bg-gray-900 text-gray-500 hover:text-white'}`}
-             >
-                TABELA DE PONTOS
-             </button>
-             <button 
-                onClick={() => setViewerTab('drops')}
-                className={`px-8 py-3 rounded-full font-bold text-lg transition-all ${viewerTab === 'drops' ? 'bg-primary text-black shadow-[0_0_20px_rgba(var(--color-primary),0.5)]' : 'bg-gray-900 text-gray-500 hover:text-white'}`}
-             >
-                MAPAS DE QUEDA
-             </button>
-         </div>
-
-         {/* Content */}
-         <div className="flex-1 p-4 md:p-8 overflow-y-auto">
-             {viewerTab === 'ranking' ? (
-                 <div className="max-w-5xl mx-auto">
-                    {/* Top 3 Podium */}
-                     <div className="flex items-end justify-center gap-4 mb-12 min-h-[200px]">
-                        {/* 2nd Place */}
-                        {leaderboard[1] && (
-                            <div className="flex flex-col items-center w-32 md:w-48 animate-fade-in" style={{animationDelay: '0.1s'}}>
-                                <div className="text-gray-400 font-bold mb-2">2º LUGAR</div>
-                                <div className="w-full bg-gray-800 h-32 rounded-t-lg border-t-4 border-gray-400 flex flex-col justify-end p-2 relative">
-                                     <div className="absolute top-[-20px] left-1/2 -translate-x-1/2 w-10 h-10 rounded-full border-2 border-gray-400 shadow-lg" style={{backgroundColor: teams.find(t=>t.id === leaderboard[1].teamId)?.color}}></div>
-                                     <div className="text-center font-bold text-white truncate">{leaderboard[1].teamName}</div>
-                                     <div className="text-center text-sm text-gray-400">{leaderboard[1].totalPoints} pts</div>
-                                </div>
-                            </div>
-                        )}
-                        {/* 1st Place */}
-                        {leaderboard[0] && (
-                            <div className="flex flex-col items-center w-40 md:w-56 -mt-8 animate-fade-in">
-                                <Crown className="text-yellow-500 mb-2 animate-bounce-slow" size={32}/>
-                                <div className="w-full bg-gray-800 h-48 rounded-t-lg border-t-4 border-yellow-500 flex flex-col justify-end p-4 relative shadow-[0_0_30px_rgba(255,212,0,0.1)]">
-                                     <div className="absolute top-[-25px] left-1/2 -translate-x-1/2 w-14 h-14 rounded-full border-2 border-yellow-500 shadow-lg" style={{backgroundColor: teams.find(t=>t.id === leaderboard[0].teamId)?.color}}></div>
-                                     <div className="text-center font-black text-xl text-white truncate mb-1">{leaderboard[0].teamName}</div>
-                                     <div className="text-center text-lg font-bold text-primary">{leaderboard[0].totalPoints} pts</div>
-                                     <div className="text-center text-xs text-gray-500 uppercase mt-2">{leaderboard[0].booyahs} Booyahs</div>
-                                </div>
-                            </div>
-                        )}
-                        {/* 3rd Place */}
-                        {leaderboard[2] && (
-                            <div className="flex flex-col items-center w-32 md:w-48 animate-fade-in" style={{animationDelay: '0.2s'}}>
-                                <div className="text-orange-700 font-bold mb-2">3º LUGAR</div>
-                                <div className="w-full bg-gray-800 h-24 rounded-t-lg border-t-4 border-orange-700 flex flex-col justify-end p-2 relative">
-                                     <div className="absolute top-[-20px] left-1/2 -translate-x-1/2 w-10 h-10 rounded-full border-2 border-orange-700 shadow-lg" style={{backgroundColor: teams.find(t=>t.id === leaderboard[2].teamId)?.color}}></div>
-                                     <div className="text-center font-bold text-white truncate">{leaderboard[2].teamName}</div>
-                                     <div className="text-center text-sm text-gray-400">{leaderboard[2].totalPoints} pts</div>
-                                </div>
-                            </div>
-                        )}
-                     </div>
-
-                     {/* Full Table */}
-                     <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 overflow-hidden">
-                        <table className="w-full text-left">
-                            <thead className="bg-black text-gray-500 text-xs uppercase font-bold tracking-wider">
-                                <tr>
-                                    <th className="p-4 text-center">Pos</th>
-                                    <th className="p-4">Time</th>
-                                    <th className="p-4 text-center">Abates</th>
-                                    <th className="p-4 text-center">Booyahs</th>
-                                    <th className="p-4 text-right text-white">Pontuação</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-800">
-                                {leaderboard.map((team, idx) => {
-                                    const teamColor = teams.find(t => t.id === team.teamId)?.color || '#fff';
-                                    return (
-                                        <tr key={team.teamId} className="hover:bg-white/5 transition-colors">
-                                            <td className="p-4 text-center font-mono text-gray-400 font-bold text-lg">{idx + 1}º</td>
-                                            <td className="p-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-4 h-4 rounded-full shadow-[0_0_10px_rgba(0,0,0,0.5)]" style={{backgroundColor: teamColor}}></div>
-                                                    <span className="font-bold text-lg">{team.teamName}</span>
-                                                </div>
-                                            </td>
-                                            <td className="p-4 text-center text-gray-400">{team.totalKills}</td>
-                                            <td className="p-4 text-center text-gray-400">{team.booyahs}</td>
-                                            <td className="p-4 text-right font-black text-2xl text-primary">{team.totalPoints}</td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                     </div>
-                 </div>
-             ) : (
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-[1600px] mx-auto">
-                    {currentMapOrder.map((mapId, index) => {
-                        const mapData = MAPS.find(m => m.id === mapId);
-                        if (!mapData) return null;
-                        
-                        // Check for Basic Mode selections to show them if necessary
-                        const hasBasicSelections = mode === 'basic';
-                        
-                        return (
-                             <div key={mapId} className="bg-[#1a1a1a] border border-gray-800 rounded-xl overflow-hidden flex flex-col h-full animate-fade-in" style={{animationDelay: `${index * 0.1}s`}}>
-                                 <div className="p-3 bg-black border-b border-gray-800 flex justify-between items-center">
-                                     <span className="font-bold text-gray-500 text-sm">QUEDA {index + 1}</span>
-                                     <span className="font-bold text-primary uppercase">{mapData.name}</span>
-                                 </div>
-                                 <div className="flex-1 min-h-[300px] relative">
-                                    {mode === 'basic' ? (
-                                        <div className="p-4 h-full overflow-y-auto">
-                                            <table className="w-full text-sm">
-                                                <tbody className="divide-y divide-gray-800">
-                                                    {teams.map(team => {
-                                                        const city = basicSelections[mapId]?.[team.id];
-                                                        return city ? (
-                                                            <tr key={team.id}>
-                                                                <td className="py-2 flex items-center gap-2">
-                                                                    <div className="w-2 h-2 rounded-full" style={{backgroundColor: team.color}}></div>
-                                                                    <span className="font-bold text-gray-300">{team.name}</span>
-                                                                </td>
-                                                                <td className="py-2 text-right text-primary font-mono">{city}</td>
-                                                            </tr>
-                                                        ) : null
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    ) : (
-                                        <div className="h-full p-2">
-                                            <DraggableMap
-                                                mapName=""
-                                                image={mapData.image}
-                                                teams={teams}
-                                                positions={premiumPositions[mapId] || {}}
-                                                onPositionChange={() => {}}
-                                                readOnly={true}
-                                            />
-                                        </div>
-                                    )}
-                                 </div>
-                             </div>
-                        )
-                    })}
-                 </div>
-             )}
-         </div>
-      </div>
-    );
-  };
-
-  const renderReport = () => {
-    const textReport = useMemo(() => {
-        try {
-            const safeTrainingName = (trainingName || 'Treino').toUpperCase();
-            let text = `*${safeTrainingName}* - ${new Date().toLocaleDateString()}\n\n`;
-            text += `*CLASSIFICAÇÃO GERAL*\n`;
-            
-            if (leaderboard && leaderboard.length > 0) {
-                leaderboard.forEach((team, idx) => {
-                    let medal = '';
-                    if(idx === 0) medal = '🥇';
-                    else if(idx === 1) medal = '🥈';
-                    else if(idx === 2) medal = '🥉';
-                    else medal = `${idx+1}º`;
-                    
-                    text += `${medal} ${team.teamName}: ${team.totalPoints}pts (${team.booyahs} Booyahs)\n`;
-                });
-            } else {
-                text += "Nenhum dado disponível.\n";
-            }
-
-            text += `\nGerado por Criador de Treino`;
-            return text;
-        } catch (err) {
-            console.error("Error generating report text:", err);
-            return "Erro ao gerar relatório.";
-        }
-    }, [leaderboard, trainingName]);
-
-    return (
-        <div className="flex flex-col items-center max-w-2xl mx-auto p-6 w-full">
-            <h2 className="text-2xl font-display font-bold mb-6">RELATÓRIO DE TEXTO</h2>
-            <div className="w-full bg-panel border border-theme rounded-xl p-4 mb-4 relative">
-                <textarea 
-                    readOnly 
-                    value={textReport}
-                    className="w-full h-96 bg-transparent border-none resize-none focus:outline-none text-sm font-mono text-muted"
-                />
-                <Button 
-                    className="absolute top-4 right-4" 
-                    size="sm"
-                    onClick={() => {
-                        navigator.clipboard.writeText(textReport)
-                            .then(() => alert("Copiado para área de transferência!"))
-                            .catch(() => alert("Erro ao copiar. Selecione o texto manualmente."));
-                    }}
-                >
-                    <Check size={16}/> COPIAR
-                </Button>
-            </div>
-            <Button variant="secondary" onClick={() => setStep(Step.DASHBOARD)}>VOLTAR AO DASHBOARD</Button>
-        </div>
-    );
-  };
-  
-  const renderHelpModal = () => (
-    showHelp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-            <div className="bg-panel rounded-xl border border-theme p-6 max-w-lg w-full shadow-theme max-h-[80vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-bold text-main flex items-center gap-2"><HelpCircle className="text-primary"/> Ajuda & Instruções</h3>
-                    <Button variant="ghost" size="sm" onClick={() => setShowHelp(false)}><X size={18}/></Button>
-                </div>
-                
-                <div className="space-y-4 text-sm text-muted">
-                    <p><strong className="text-white">1. Cadastro de Times:</strong> Adicione os nomes dos times e escolha cores para identificação.</p>
-                    <p><strong className="text-white">2. Sorteio de Mapas:</strong> Defina a ordem dos mapas que serão jogados. Use a roleta para aleatorizar.</p>
-                    <p><strong className="text-white">3. Estratégia (Drag & Drop):</strong> 
-                    <br/>- No modo <strong>Básico</strong>, selecione as cidades em uma lista.
-                    <br/>- No modo <strong>Premium</strong>, arraste os nomes dos times diretamente para suas calls no mapa.
-                    </p>
-                    <p><strong className="text-white">4. Pontuação:</strong> Insira o Rank (Posição) e Kills de cada time após cada queda. A pontuação é calculada automaticamente.</p>
-                    <p><strong className="text-white">5. Dashboard:</strong> Visualize a tabela de classificação e gere banners.</p>
-                </div>
-                
-                <div className="mt-6 flex justify-end">
-                    <Button onClick={() => setShowHelp(false)}>Entendi</Button>
-                </div>
-            </div>
-        </div>
-    )
-  );
-
-  const renderDeleteModal = () => (
-    teamToDelete && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-        <div className="bg-panel rounded-xl border border-theme p-6 max-w-sm w-full shadow-theme">
-          <h3 className="text-xl font-bold mb-4 text-main">Confirmar Exclusão</h3>
-          <p className="text-muted mb-6">Tem certeza que deseja remover este time? Esta ação não pode ser desfeita.</p>
-          <div className="flex gap-3 justify-end">
-            <Button variant="ghost" onClick={() => setTeamToDelete(null)}>Cancelar</Button>
-            <Button variant="danger" onClick={executeDeleteTeam}>Sim, Excluir</Button>
-          </div>
-        </div>
-      </div>
-    )
-  );
-
-  const renderVisualizerModal = () => {
-    if (!showStrategyVisualizer) return null;
-    const currentMapOrder = shuffledMaps.length > 0 ? shuffledMaps : MAPS.map(m => m.id);
-
-    return (
-      <div className="fixed inset-0 z-50 flex flex-col bg-background animate-fade-in overflow-hidden">
-        <div className="p-4 flex justify-between items-center border-b border-theme bg-panel">
-           <h2 className="text-xl font-bold text-primary flex items-center gap-2"><Eye size={20}/> Visualização de Estratégia</h2>
-           <Button variant="secondary" size="sm" onClick={() => setShowStrategyVisualizer(false)}><X/></Button>
-        </div>
-        <div className="flex-1 overflow-auto p-4 md:p-8">
-           {selectedWarnings.length > 0 && (
-             <div className="mb-8 border border-primary/30 bg-primary/5 p-4 rounded-lg">
-               <h4 className="text-primary font-bold mb-2 flex items-center gap-2"><AlertTriangle size={16}/> REGRAS ATIVAS</h4>
-               <ul className="list-disc list-inside text-muted">
-                 {selectedWarnings.map((w,i) => <li key={i}>{w}</li>)}
-               </ul>
-             </div>
-           )}
-
-           {mode === 'basic' ? (
-              <div className="overflow-x-auto bg-panel rounded-xl border border-theme shadow-theme p-4">
-               <table className="w-full text-left border-collapse min-w-[1000px]">
-                 <thead>
-                   <tr className="bg-background text-primary uppercase text-sm font-bold tracking-wider border-b border-theme">
-                     <th className="p-4 border-r border-theme">TIME</th>
-                     {currentMapOrder.map(mapId => (
-                       <th key={mapId} className="p-4 border-r border-theme">{MAPS.find(m => m.id === mapId)?.name}</th>
-                     ))}
-                   </tr>
-                 </thead>
-                 <tbody className="divide-y divide-gray-800/20">
-                   {teams.map(team => (
-                     <tr key={team.id} className="hover:bg-primary/5">
-                       <td className="p-3 font-semibold text-main border-r border-theme bg-panel">
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full shrink-0" style={{backgroundColor: team.color}}></div>
-                                {team.name}
-                            </div>
-                       </td>
-                       {currentMapOrder.map(mapId => {
-                         const currentSelection = basicSelections[mapId]?.[team.id] || "-";
-                         const isConflict = Object.entries(basicSelections[mapId] || {}).some(
-                           ([tId, city]) => tId !== team.id && city === currentSelection && city !== "-" && city !== ""
-                         );
-                         return (
-                           <td key={mapId} className={`p-3 border-r border-theme ${isConflict ? 'text-red-500 font-bold bg-red-500/10' : 'text-muted'}`}>
-                             {currentSelection}
-                           </td>
-                         )
-                       })}
-                     </tr>
-                   ))}
-                 </tbody>
-               </table>
-              </div>
-           ) : (
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {currentMapOrder.map(mapId => {
-                  const mapData = MAPS.find(m => m.id === mapId);
-                  return mapData ? (
-                    <DraggableMap
-                      key={mapId}
-                      mapName={mapData.name}
-                      image={mapData.image}
-                      teams={teams}
-                      positions={premiumPositions[mapId] || {}}
-                      onPositionChange={() => {}}
-                      readOnly={true}
-                    />
-                  ) : null;
-                })}
-             </div>
-           )}
-        </div>
-      </div>
-    );
-  };
-
-  const renderSocialBanner = () => {
-    if (!showSocialBanner) return null;
-    const sortedLeaderboard = leaderboard;
-    const champion = sortedLeaderboard[0];
-    const secondPlace = sortedLeaderboard[1];
-    const thirdPlace = sortedLeaderboard[2];
-    const others = sortedLeaderboard.slice(3);
-
-    return (
-      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-lg animate-fade-in overflow-y-auto">
-        <div className="relative w-full max-w-[500px] bg-black border-2 border-primary rounded-xl overflow-hidden shadow-[0_0_50px_rgba(var(--color-primary),0.3)]">
-           <button onClick={() => setShowSocialBanner(false)} className="absolute top-4 right-4 z-10 bg-black/50 p-2 rounded-full text-white hover:bg-white hover:text-black transition-colors"><X size={20}/></button>
-           
-           {/* Banner Content Container */}
-           <div className="bg-gradient-to-b from-gray-900 to-black p-6 md:p-8 text-center flex flex-col items-center">
-              {/* Header */}
-              <div className="mb-6 w-full border-b border-primary/30 pb-4">
-                 <div className="flex items-center justify-center gap-2 mb-2">
-                    <Crown className="text-primary fill-primary" size={24}/>
-                    <span className="font-bold text-primary tracking-widest text-sm uppercase">Criador de Treino</span>
-                 </div>
-                 <h2 className="text-2xl font-black text-white uppercase leading-none mb-1">{trainingName}</h2>
-                 <p className="text-xs text-gray-400 font-mono">{new Date().toLocaleDateString()}</p>
-              </div>
-
-              {/* Podium */}
-              <div className="flex items-end justify-center gap-2 mb-6 w-full">
-                 {/* 2nd */}
-                 <div className="flex flex-col items-center w-1/3">
-                    <div className="mb-1 text-[10px] font-bold text-gray-400">2º LUGAR</div>
-                    <div className="w-full bg-gradient-to-t from-gray-700 to-gray-600 rounded-t-lg h-24 flex flex-col justify-end pb-2 relative border-t-2 border-gray-400">
-                       <span className="text-white font-bold text-sm leading-tight px-1 truncate w-full">{secondPlace?.teamName || '-'}</span>
-                       <span className="text-xs text-gray-300">{secondPlace?.totalPoints || 0} pts</span>
-                    </div>
-                 </div>
-                 {/* 1st */}
-                 <div className="flex flex-col items-center w-1/3 -mt-4">
-                    <Crown size={20} className="text-primary mb-1 animate-bounce"/>
-                    <div className="w-full bg-gradient-to-t from-primary/80 to-primary rounded-t-lg h-32 flex flex-col justify-end pb-3 relative border-t-2 border-yellow-200 shadow-[0_0_20px_rgba(var(--color-primary),0.4)]">
-                       <span className="text-black font-black text-lg leading-tight px-1 truncate w-full">{champion?.teamName || '-'}</span>
-                       <span className="text-sm font-bold text-black/70">{champion?.totalPoints || 0} pts</span>
-                       <div className="text-[10px] font-bold text-black/60 mt-1">{champion?.booyahs || 0} Booyahs</div>
-                    </div>
-                 </div>
-                 {/* 3rd */}
-                 <div className="flex flex-col items-center w-1/3">
-                    <div className="mb-1 text-[10px] font-bold text-orange-400">3º LUGAR</div>
-                    <div className="w-full bg-gradient-to-t from-orange-800 to-orange-700 rounded-t-lg h-20 flex flex-col justify-end pb-2 relative border-t-2 border-orange-500">
-                       <span className="text-white font-bold text-sm leading-tight px-1 truncate w-full">{thirdPlace?.teamName || '-'}</span>
-                       <span className="text-xs text-orange-200">{thirdPlace?.totalPoints || 0} pts</span>
-                    </div>
-                 </div>
-              </div>
-
-              {/* List */}
-              <div className="w-full bg-gray-900/50 rounded-lg border border-gray-800 p-3">
-                 <div className="grid grid-cols-[20px_1fr_40px] gap-2 text-[10px] font-bold text-gray-500 uppercase mb-2 border-b border-gray-800 pb-1">
-                    <div>#</div><div className="text-left">Time</div><div>Pts</div>
-                 </div>
-                 <div className="space-y-1.5">
-                    {others.length === 0 ? <div className="text-xs text-gray-600 py-2">Sem mais times</div> : 
-                      others.map((team, idx) => (
-                        <div key={team.teamId} className="grid grid-cols-[20px_1fr_40px] gap-2 text-xs items-center">
-                           <div className="font-mono text-gray-500">{idx + 4}</div>
-                           <div className="text-left text-gray-200 font-medium truncate">{team.teamName}</div>
-                           <div className="text-primary font-bold">{team.totalPoints}</div>
-                        </div>
-                      ))
-                    }
-                 </div>
-              </div>
-
-              <div className="mt-6 text-[10px] text-gray-600 font-mono flex items-center gap-1">
-                 Gerado por Criador de Treino <Flame size={10} className="text-primary"/>
-              </div>
-           </div>
-        </div>
-      </div>
-    );
-  };
 
   const renderTeamRegister = () => (
     <div className="flex-1 w-full p-6 max-w-4xl mx-auto flex flex-col">
@@ -1180,6 +1233,21 @@ function MainApp() {
            />
         </div>
       </div>
+      
+      {mode === 'premium_plus' && teams.length === 0 && (
+          <div className="bg-[#FFD400]/10 border border-[#FFD400]/50 p-4 rounded-lg mb-6 flex flex-col md:flex-row items-center gap-4 text-center md:text-left">
+              <div className="bg-[#FFD400]/20 p-2 rounded-full">
+                <Zap className="text-[#FFD400]" size={24} />
+              </div>
+              <div className="text-sm text-gray-200">
+                  <strong className="text-[#FFD400] block text-lg mb-1">Modo Premium Plus Ativo</strong>
+                  Você pode pular o cadastro manual. Os times, jogadores e tags serão identificados automaticamente ao enviar o arquivo de replay na tela de Pontuação.
+              </div>
+              <Button onClick={goToSort} variant="primary" size="sm" className="md:ml-auto bg-[#FFD400] text-black border-none hover:bg-yellow-400">
+                  Pular Cadastro
+              </Button>
+          </div>
+      )}
 
       <div className="flex gap-4 mb-8">
         <input 
@@ -1196,41 +1264,71 @@ function MainApp() {
 
       <div className="flex-1 bg-panel rounded-xl border border-theme p-4 mb-8 overflow-y-auto shadow-theme">
         {teams.length === 0 ? <div className="h-full flex items-center justify-center text-muted">Nenhum time cadastrado ainda.</div> : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             {teams.map((team, idx) => (
-              <div key={team.id} className="flex items-center justify-between bg-background p-3 rounded border border-theme group hover:border-muted/50">
-                <div className="flex items-center gap-3 w-full">
-                  <span className="text-muted font-mono text-sm w-6">{(idx + 1).toString().padStart(2, '0')}</span>
-                  {/* Color Picker / Display */}
-                  <div className="relative group/color">
-                      <div className="w-6 h-6 rounded-full cursor-pointer shadow-sm border border-white/20" style={{ backgroundColor: team.color }}></div>
-                      <div className="absolute top-full left-0 z-20 hidden group-hover/color:flex flex-col gap-2 bg-panel border border-theme p-2 rounded-lg shadow-xl w-[160px]">
-                          <div className="grid grid-cols-5 gap-1">
-                            {TEAM_COLORS.map(c => (
-                                <button 
-                                    key={c} 
-                                    className="w-5 h-5 rounded-full border border-white/10 hover:scale-110 transition-transform" 
-                                    style={{backgroundColor: c}}
-                                    onClick={() => updateTeamColor(team.id, c)}
+              <div key={team.id} className="bg-background p-3 rounded border border-theme group hover:border-muted/50 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 w-full">
+                    <span className="text-muted font-mono text-sm w-6">{(idx + 1).toString().padStart(2, '0')}</span>
+                    {/* Color Picker / Display */}
+                    <div className="relative group/color">
+                        <div className="w-6 h-6 rounded-full cursor-pointer shadow-sm border border-white/20" style={{ backgroundColor: team.color }}></div>
+                        <div className="absolute top-full left-0 z-20 hidden group-hover/color:flex flex-col gap-2 bg-panel border border-theme p-2 rounded-lg shadow-xl w-[160px]">
+                            <div className="grid grid-cols-5 gap-1">
+                                {TEAM_COLORS.map(c => (
+                                    <button 
+                                        key={c} 
+                                        className="w-5 h-5 rounded-full border border-white/10 hover:scale-110 transition-transform" 
+                                        style={{backgroundColor: c}}
+                                        onClick={() => updateTeamColor(team.id, c)}
+                                    />
+                                ))}
+                            </div>
+                            <div className="relative h-8 rounded border border-theme overflow-hidden flex items-center justify-center bg-background cursor-pointer hover:bg-white/5 transition-colors">
+                                <span className="text-[10px] text-muted font-bold uppercase pointer-events-none">Cor Personalizada</span>
+                                <input 
+                                    type="color" 
+                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                    value={team.color}
+                                    onChange={(e) => updateTeamColor(team.id, e.target.value)}
                                 />
-                            ))}
-                          </div>
-                          <div className="relative h-8 rounded border border-theme overflow-hidden flex items-center justify-center bg-background cursor-pointer hover:bg-white/5 transition-colors">
-                            <span className="text-[10px] text-muted font-bold uppercase pointer-events-none">Cor Personalizada</span>
-                            <input 
-                                type="color" 
-                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                                value={team.color}
-                                onChange={(e) => updateTeamColor(team.id, e.target.value)}
-                            />
-                          </div>
-                      </div>
-                  </div>
-                  
-                  <input className="bg-transparent border-none focus:outline-none text-main font-medium w-full" value={team.name} onChange={(e) => updateTeamName(team.id, e.target.value)} />
-                  <Edit2 size={14} className="text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <input className="bg-transparent border-none focus:outline-none text-main font-medium w-full text-lg" value={team.name} onChange={(e) => updateTeamName(team.id, e.target.value)} />
+                    </div>
+                    <button onClick={() => confirmDeleteTeam(team.id)} className="text-muted hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
                 </div>
-                <button onClick={() => confirmDeleteTeam(team.id)} className="text-muted hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                
+                {/* Player Registration Area */}
+                <div className="pl-9 border-t border-theme/30 pt-2">
+                    <div className="text-xs text-muted mb-2 font-bold uppercase flex items-center gap-2"><Users size={12}/> Jogadores ({team.players.length}/6)</div>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                        {team.players.map((player, pIdx) => (
+                            <div key={pIdx} className="bg-panel border border-theme px-2 py-1 rounded-md text-sm flex items-center gap-1">
+                                {player}
+                                <button onClick={() => removePlayerFromTeam(team.id, pIdx)} className="hover:text-red-500"><X size={12}/></button>
+                            </div>
+                        ))}
+                        {team.players.length < 6 && (
+                            <div className="relative flex items-center">
+                                <UserPlus size={14} className="absolute left-2 text-muted"/>
+                                <input 
+                                    type="text" 
+                                    placeholder="Add Player" 
+                                    className="bg-background border border-theme rounded-md py-1 pl-7 pr-2 text-sm w-32 focus:outline-none focus:border-primary"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            addPlayerToTeam(team.id, e.currentTarget.value);
+                                            e.currentTarget.value = '';
+                                        }
+                                    }}
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
               </div>
             ))}
           </div>
@@ -1243,10 +1341,10 @@ function MainApp() {
              <input type="file" accept=".json" ref={fileInputRef} onChange={handleFileChange} className="hidden"/>
          </div>
          <div className="flex gap-2">
-            <Button variant="secondary" onClick={handleExportStrategy} disabled={teams.length === 0}><Save size={18}/> Salvar</Button>
+            <Button variant="secondary" onClick={handleExportStrategy} disabled={teams.length === 0 && mode !== 'premium_plus'}><Save size={18}/> Salvar</Button>
             <Button variant="secondary" onClick={handleImportClick}><Upload size={18}/> Carregar</Button>
          </div>
-        <Button onClick={goToSort} size="lg" disabled={teams.length === 0}>GERAR TABELA DE TREINO <ArrowRight /></Button>
+        <Button onClick={goToSort} size="lg" disabled={teams.length === 0 && mode !== 'premium_plus'}>GERAR TABELA DE TREINO <ArrowRight /></Button>
       </div>
     </div>
   );
@@ -1401,6 +1499,288 @@ function MainApp() {
             </div>
           </div>
         )}
+      </div>
+    );
+  };
+
+  const renderReport = () => {
+    // Generate text report
+    const reportText = `
+🏆 *RELATÓRIO FINAL - ${trainingName.toUpperCase()}* 🏆
+📅 Data: ${new Date().toLocaleDateString()}
+
+🥇 *TOP 3 CLASSIFICAÇÃO:*
+1️⃣ ${leaderboard[0]?.teamName || 'N/A'} - ${leaderboard[0]?.totalPoints || 0} pts (${leaderboard[0]?.booyahs || 0} Booyahs)
+2️⃣ ${leaderboard[1]?.teamName || 'N/A'} - ${leaderboard[1]?.totalPoints || 0} pts
+3️⃣ ${leaderboard[2]?.teamName || 'N/A'} - ${leaderboard[2]?.totalPoints || 0} pts
+
+🔫 *MVP (MÁXIMO DE KILLS):*
+${playerStats[0]?.name || 'N/A'} (${playerStats[0]?.teamName || '-'}) - ${playerStats[0]?.totalKills || 0} Kills
+
+📊 *TABELA COMPLETA:*
+${leaderboard.map(t => `#${String(t.rank).padStart(2,'0')} ${t.teamName} | ${t.totalPoints} pts | ${t.totalKills} kills | ${t.booyahs} wins`).join('\n')}
+
+Gerado por Criador de Treino
+    `.trim();
+
+    const copyToClipboard = () => {
+        navigator.clipboard.writeText(reportText);
+        alert("Relatório copiado para a área de transferência!");
+    };
+
+    return (
+        <div className="flex flex-col items-center w-full max-w-4xl mx-auto p-6 animate-fade-in">
+             <h2 className="text-3xl font-display font-bold mb-2 text-center">RELATÓRIO FINAL</h2>
+             <p className="text-muted mb-8 text-center">Copie o resumo para enviar no WhatsApp ou Discord.</p>
+             
+             <div className="w-full bg-panel border border-theme rounded-xl p-6 mb-6 shadow-theme">
+                 <pre className="whitespace-pre-wrap font-mono text-sm text-gray-300 bg-black/30 p-4 rounded-lg border border-gray-800 overflow-x-auto">
+                     {reportText}
+                 </pre>
+             </div>
+
+             <div className="flex gap-4">
+                 <Button onClick={copyToClipboard} size="lg"><FileText size={20}/> COPIAR TEXTO</Button>
+                 <Button variant="secondary" size="lg" onClick={() => setStep(Step.DASHBOARD)}>VER DASHBOARD <BarChart2 size={20}/></Button>
+             </div>
+        </div>
+    );
+  };
+
+  const renderHelpModal = () => {
+    if (!showHelp) return null;
+    return (
+      <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+        <div className="bg-panel border border-theme rounded-xl max-w-lg w-full p-6 shadow-2xl">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold flex items-center gap-2"><HelpCircle className="text-primary"/> Ajuda</h3>
+            <button onClick={() => setShowHelp(false)} className="text-muted hover:text-white"><X size={24}/></button>
+          </div>
+          <div className="space-y-4 text-sm text-gray-300 max-h-[60vh] overflow-y-auto">
+             <p><strong>Modo Básico:</strong> Para celulares mais simples. Selecione as cidades em uma lista.</p>
+             <p><strong>Modo Premium:</strong> Mapa interativo. Arraste os nomes dos times para posicionar na call.</p>
+             <p><strong>Modo Premium Plus:</strong> Carregue o arquivo JSON do replay para preencher times, kills e ranking automaticamente.</p>
+             <hr className="border-gray-700"/>
+             <p><strong>Atalhos:</strong> Use o zoom no mapa para maior precisão. No PC, você pode usar Scroll para zoom.</p>
+          </div>
+          <div className="mt-6 flex justify-end">
+            <Button onClick={() => setShowHelp(false)}>Entendi</Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderDeleteModal = () => {
+    if (!teamToDelete) return null;
+    return (
+      <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+         <div className="bg-panel border border-red-900/50 rounded-xl p-6 max-w-sm w-full shadow-2xl text-center">
+             <div className="mx-auto w-12 h-12 rounded-full bg-red-900/20 flex items-center justify-center text-red-500 mb-4">
+                 <Trash2 size={24} />
+             </div>
+             <h3 className="text-lg font-bold mb-2">Excluir Time?</h3>
+             <p className="text-muted text-sm mb-6">Esta ação não pode ser desfeita. O time será removido da lista.</p>
+             <div className="flex gap-3 justify-center">
+                 <Button variant="ghost" onClick={() => setTeamToDelete(null)}>Cancelar</Button>
+                 <Button variant="danger" onClick={executeDeleteTeam}>Excluir</Button>
+             </div>
+         </div>
+      </div>
+    );
+  };
+
+  const renderVisualizerModal = () => {
+     if (!showStrategyVisualizer) return null;
+     const currentMapOrder = shuffledMaps.length > 0 ? shuffledMaps : MAPS.map(m => m.id);
+     
+     return (
+         <div className="fixed inset-0 z-[60] bg-black text-white flex flex-col animate-fade-in">
+             <div className="flex justify-between items-center p-4 border-b border-gray-800 bg-[#111]">
+                 <h2 className="font-bold text-lg flex items-center gap-2"><Eye className="text-primary"/> Visualizador de Estratégia</h2>
+                 <Button variant="ghost" size="sm" onClick={() => setShowStrategyVisualizer(false)}><X size={20}/></Button>
+             </div>
+             <div className="flex-1 overflow-y-auto p-4 bg-black">
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-[1600px] mx-auto">
+                     {currentMapOrder.map((mapId, i) => {
+                         const mapData = MAPS.find(m => m.id === mapId);
+                         if(!mapData) return null;
+                         return (
+                             <div key={mapId} className="flex flex-col gap-2">
+                                 <div className="font-bold text-center text-gray-400 text-sm uppercase">Queda {i+1} - {mapData.name}</div>
+                                 <div className="aspect-square relative rounded-xl overflow-hidden border border-gray-800">
+                                     <DraggableMap
+                                        mapName={mapData.name}
+                                        image={mapData.image}
+                                        teams={teams}
+                                        positions={premiumPositions[mapId] || {}}
+                                        onPositionChange={() => {}}
+                                        readOnly={true}
+                                     />
+                                 </div>
+                             </div>
+                         )
+                     })}
+                 </div>
+             </div>
+         </div>
+     )
+  };
+
+  const renderSocialBanner = () => {
+      if (!showSocialBanner) return null;
+      // Simple preview - In a real app we might use html2canvas
+      return (
+          <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in overflow-y-auto">
+              <div className="w-full max-w-3xl flex flex-col gap-4">
+                  <div className="flex justify-between items-center text-white">
+                      <h3 className="font-bold text-xl">Banner de Resultado</h3>
+                      <Button variant="secondary" onClick={() => setShowSocialBanner(false)}><X size={18}/></Button>
+                  </div>
+                  
+                  {/* Banner Preview */}
+                  <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-8 shadow-2xl relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary to-purple-600"></div>
+                      
+                      <div className="text-center mb-8">
+                          <Crown size={48} className="text-primary mx-auto mb-2" />
+                          <h1 className="text-4xl font-black text-white uppercase tracking-tighter">{trainingName}</h1>
+                          <p className="text-gray-500 uppercase tracking-widest text-sm">Tabela Final</p>
+                      </div>
+
+                      <div className="space-y-2 mb-8">
+                          {leaderboard.slice(0, 5).map((team, idx) => (
+                              <div key={team.teamId} className="flex items-center bg-black/50 p-3 rounded-lg border border-gray-800">
+                                  <div className={`w-8 h-8 flex items-center justify-center font-bold rounded-lg mr-4 ${idx === 0 ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-white'}`}>
+                                      {idx + 1}
+                                  </div>
+                                  <div className="flex-1 font-bold text-white text-lg">{team.teamName}</div>
+                                  <div className="flex gap-4 text-sm">
+                                      <div className="text-gray-400">Kills: <span className="text-white font-bold">{team.totalKills}</span></div>
+                                      <div className="text-gray-400">Booyahs: <span className="text-white font-bold">{team.booyahs}</span></div>
+                                      <div className="text-primary font-black text-xl w-12 text-right">{team.totalPoints}</div>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+
+                      <div className="flex justify-between items-center text-xs text-gray-600 uppercase tracking-wider border-t border-gray-800 pt-4">
+                          <span>Criado com Criador de Treino</span>
+                          <span>{new Date().toLocaleDateString()}</span>
+                      </div>
+                  </div>
+                  
+                  <div className="text-center">
+                      <p className="text-muted text-sm mb-2">Tire um print da tela para compartilhar (Windows + Shift + S)</p>
+                      <Button onClick={() => setShowSocialBanner(false)}>Fechar</Button>
+                  </div>
+              </div>
+          </div>
+      )
+  };
+
+  const renderViewer = () => {
+    const currentMapOrder = shuffledMaps.length > 0 ? shuffledMaps : MAPS.map(m => m.id);
+    
+    return (
+      <div className="fixed inset-0 z-[100] bg-black text-white flex flex-col animate-fade-in">
+           <div className="flex justify-between items-center p-4 border-b border-gray-800 bg-[#111]">
+               <div className="flex items-center gap-4">
+                   <h2 className="font-bold text-lg flex items-center gap-2"><Monitor className="text-primary"/> Modo Apresentação</h2>
+                   <div className="flex bg-gray-900 rounded-lg p-1 border border-gray-800">
+                       <button 
+                          onClick={() => setViewerTab('ranking')} 
+                          className={`px-3 py-1 rounded text-xs font-bold transition-colors ${viewerTab === 'ranking' ? 'bg-primary text-black' : 'text-gray-400 hover:text-white'}`}
+                       >
+                           RANKING
+                       </button>
+                       <button 
+                          onClick={() => setViewerTab('drops')} 
+                          className={`px-3 py-1 rounded text-xs font-bold transition-colors ${viewerTab === 'drops' ? 'bg-primary text-black' : 'text-gray-400 hover:text-white'}`}
+                       >
+                           MAPAS
+                       </button>
+                   </div>
+               </div>
+               <Button variant="ghost" size="sm" onClick={() => setStep(Step.DASHBOARD)}><X size={20}/></Button>
+           </div>
+           
+           <div className="flex-1 overflow-hidden relative bg-[#050505]">
+               {viewerTab === 'ranking' ? (
+                   <div className="h-full overflow-y-auto p-4 md:p-8 flex justify-center">
+                       <div className="w-full max-w-6xl">
+                           <div className="text-center mb-8">
+                               <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter mb-2">{trainingName}</h1>
+                               <div className="h-1 w-32 bg-primary mx-auto rounded-full"></div>
+                           </div>
+                           
+                           <div className="grid gap-4">
+                               {leaderboard.map((team, idx) => (
+                                   <div key={team.teamId} className={`
+                                      flex items-center p-4 rounded-xl border transition-all
+                                      ${idx < 3 ? 'bg-gradient-to-r from-gray-900 to-black border-gray-700 transform hover:scale-[1.01]' : 'bg-black/50 border-gray-800'}
+                                   `}>
+                                       <div className={`
+                                          w-12 h-12 flex items-center justify-center text-xl font-black rounded-lg mr-6 shrink-0
+                                          ${idx === 0 ? 'bg-[#FFD400] text-black shadow-[0_0_20px_rgba(255,212,0,0.3)]' : ''}
+                                          ${idx === 1 ? 'bg-gray-300 text-black' : ''}
+                                          ${idx === 2 ? 'bg-orange-700 text-white' : ''}
+                                          ${idx > 2 ? 'bg-gray-800 text-gray-500' : ''}
+                                       `}>
+                                           {idx + 1}
+                                       </div>
+                                       
+                                       <div className="flex-1">
+                                           <div className="flex items-center gap-3 mb-1">
+                                               {teams.find(t => t.id === team.teamId)?.color && (
+                                                   <div className="w-3 h-3 rounded-full" style={{backgroundColor: teams.find(t => t.id === team.teamId)?.color}}></div>
+                                               )}
+                                               <span className={`text-xl md:text-2xl font-bold ${idx < 3 ? 'text-white' : 'text-gray-300'}`}>{team.teamName}</span>
+                                           </div>
+                                           <div className="flex gap-4 text-xs md:text-sm text-gray-500 font-mono">
+                                               <span>KILLS: <b className="text-gray-300">{team.totalKills}</b></span>
+                                               <span>BOOYAH: <b className="text-gray-300">{team.booyahs}</b></span>
+                                           </div>
+                                       </div>
+                                       
+                                       <div className="text-right">
+                                           <div className="text-3xl md:text-4xl font-black text-primary tracking-tighter">{team.totalPoints}</div>
+                                           <div className="text-[10px] text-primary/50 uppercase font-bold">PONTOS</div>
+                                       </div>
+                                   </div>
+                               ))}
+                           </div>
+                       </div>
+                   </div>
+               ) : (
+                   <div className="h-full overflow-y-auto p-4">
+                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 max-w-[1800px] mx-auto">
+                           {currentMapOrder.map((mapId, i) => {
+                               const mapData = MAPS.find(m => m.id === mapId);
+                               if(!mapData) return null;
+                               return (
+                                   <div key={mapId} className="flex flex-col gap-2">
+                                       <div className="flex items-center justify-between px-2">
+                                           <span className="font-bold text-primary uppercase text-sm tracking-wider">QUEDA {i+1}</span>
+                                           <span className="text-gray-500 text-xs font-bold">{mapData.name}</span>
+                                       </div>
+                                       <div className="aspect-square relative rounded-xl overflow-hidden border border-gray-800 bg-[#111] shadow-2xl">
+                                           <DraggableMap
+                                              mapName={mapData.name}
+                                              image={mapData.image}
+                                              teams={teams}
+                                              positions={premiumPositions[mapId] || {}}
+                                              onPositionChange={() => {}}
+                                              readOnly={true}
+                                           />
+                                       </div>
+                                   </div>
+                               )
+                           })}
+                       </div>
+                   </div>
+               )}
+           </div>
       </div>
     );
   };

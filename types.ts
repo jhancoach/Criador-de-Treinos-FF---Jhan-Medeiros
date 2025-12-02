@@ -1,9 +1,10 @@
-export type TrainingMode = 'basic' | 'premium';
+export type TrainingMode = 'basic' | 'premium' | 'premium_plus';
 
 export interface Team {
   id: string;
   name: string;
   color: string;
+  players: string[]; // Array of player names (max 6)
 }
 
 export interface MapData {
@@ -17,6 +18,7 @@ export interface MatchScore {
   teamId: string;
   rank: number | '';
   kills: number | '';
+  playerKills: Record<string, number>; // Map player name to kills
 }
 
 export interface ProcessedScore {
@@ -29,6 +31,18 @@ export interface ProcessedScore {
   totalKills: number;
   matchesPlayed: number;
   lastMatchRank: number;
+}
+
+export interface PlayerStats {
+  name: string;
+  teamName: string;
+  teamColor: string;
+  totalKills: number;
+  matchesPlayed: number;
+  // Extra stats for Premium Plus
+  totalDamage?: number;
+  mvpScore?: number;
+  timeAlive?: number;
 }
 
 export type Position = { x: number; y: number }; // Percentages
