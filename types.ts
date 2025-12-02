@@ -1,3 +1,4 @@
+
 export type TrainingMode = 'basic' | 'premium' | 'premium_plus';
 
 export interface Team {
@@ -57,10 +58,28 @@ export interface SavedTrainingSession {
   data: string; // JSON string of full state
 }
 
+// Waiting List Interfaces
+export interface TrainingRequest {
+  id: string;
+  teamName: string;
+  contact?: string;
+  timestamp: number;
+}
+
+export interface OpenTraining {
+  id: string;
+  adminName: string;
+  trainingName: string;
+  adminPin: string; // Simple protection for editing
+  requests: TrainingRequest[];
+  createdAt: number;
+}
+
 export type Position = { x: number; y: number }; // Percentages
 
 export enum Step {
   HOME = 'HOME',
+  WAITING_LIST = 'WAITING_LIST',
   PUBLIC_HUB = 'PUBLIC_HUB',
   MODE_SELECT = 'MODE_SELECT',
   TEAM_REGISTER = 'TEAM_REGISTER',
