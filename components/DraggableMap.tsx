@@ -127,37 +127,61 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
                 key={team.id}
                 onMouseDown={(e) => handleDragStart(e, team.id)}
                 onTouchStart={(e) => handleDragStart(e, team.id)}
-                className={`absolute transform -translate-x-1/2 -translate-y-1/2 group transition-all duration-75 ${isDragging ? 'z-50 scale-125' : 'z-10'} ${readOnly ? '' : 'cursor-move'}`}
+                className={`absolute transform -translate-x-1/2 -translate-y-1/2 group transition-all duration-75 ${isDragging ? 'z-50 scale-110' : 'z-10'} ${readOnly ? '' : 'cursor-move'}`}
                 style={{ 
                     left: `${pos.x}%`, 
                     top: `${pos.y}%`,
                     touchAction: 'none'
                 }}
                 >
-                <div 
-                    className={`
-                    flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold whitespace-nowrap shadow-md
-                    border transition-colors
-                    `}
-                    style={{
-                        backgroundColor: isDragging ? teamColor : 'rgba(0,0,0,0.8)',
-                        color: isDragging ? '#000' : '#FFF',
-                        borderColor: teamColor,
-                        boxShadow: `0 0 10px ${teamColor}40`
-                    }}
-                >
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: teamColor }}></div>
-                    {!readOnly && <Move size={8} className={isDragging ? 'opacity-100' : 'opacity-50'} />}
-                    {team.name}
-                </div>
-                {/* Pin indicator for map */}
-                <div className="w-0.5 h-3 bg-white absolute top-full left-1/2 -translate-x-1/2 opacity-50"></div>
+                {team.logo ? (
+                    // Logo Render
+                    <div className="relative flex flex-col items-center">
+                        <div 
+                            className="w-10 h-10 md:w-14 md:h-14 rounded-full border-2 md:border-4 shadow-lg overflow-hidden bg-black relative"
+                            style={{ borderColor: teamColor, boxShadow: `0 0 15px ${teamColor}80` }}
+                        >
+                            <img src={team.logo} alt={team.name} className="w-full h-full object-cover" />
+                            {/* Overlay when dragging */}
+                            {isDragging && <div className="absolute inset-0 bg-black/20" />}
+                        </div>
+                        <span 
+                            className="mt-1 px-2 py-0.5 bg-black/80 text-white text-[10px] md:text-xs font-bold rounded border border-gray-600 truncate max-w-[100px]"
+                            style={{ textShadow: '0 1px 2px black' }}
+                        >
+                            {team.name}
+                        </span>
+                        {/* Pin indicator line */}
+                        <div className="w-0.5 h-4 bg-white/50 absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full"></div>
+                    </div>
+                ) : (
+                    // Default Pill Render
+                    <div className="relative">
+                        <div 
+                            className={`
+                            flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold whitespace-nowrap shadow-md
+                            border transition-colors
+                            `}
+                            style={{
+                                backgroundColor: isDragging ? teamColor : 'rgba(0,0,0,0.8)',
+                                color: isDragging ? '#000' : '#FFF',
+                                borderColor: teamColor,
+                                boxShadow: `0 0 10px ${teamColor}40`
+                            }}
+                        >
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: teamColor }}></div>
+                            {!readOnly && <Move size={8} className={isDragging ? 'opacity-100' : 'opacity-50'} />}
+                            {team.name}
+                        </div>
+                        <div className="w-0.5 h-3 bg-white absolute top-full left-1/2 -translate-x-1/2 opacity-50"></div>
+                    </div>
+                )}
                 </div>
             );
             })}
         </div>
       </div>
-      {!readOnly && <p className="text-muted text-xs text-center mt-2">Use zoom para ajustar. Arraste os nomes para posicionar.</p>}
+      {!readOnly && <p className="text-muted text-xs text-center mt-2">Use zoom para ajustar. Arraste os ícones para posicionar.</p>}
     </div>
   );
 };

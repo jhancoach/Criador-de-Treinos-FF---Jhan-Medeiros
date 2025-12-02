@@ -4,6 +4,7 @@ export interface Team {
   id: string;
   name: string;
   color: string;
+  logo?: string; // Base64 string of the logo
   players: string[]; // Array of player names (max 6)
 }
 
@@ -45,10 +46,22 @@ export interface PlayerStats {
   timeAlive?: number;
 }
 
+// Interface for saved trainings in the Public Hub
+export interface SavedTrainingSession {
+  id: string;
+  name: string;
+  date: string;
+  teamsCount: number;
+  matchesCount: number;
+  leaderboardTop3: { name: string; points: number }[];
+  data: string; // JSON string of full state
+}
+
 export type Position = { x: number; y: number }; // Percentages
 
 export enum Step {
   HOME = 'HOME',
+  PUBLIC_HUB = 'PUBLIC_HUB',
   MODE_SELECT = 'MODE_SELECT',
   TEAM_REGISTER = 'TEAM_REGISTER',
   MAP_SORT = 'MAP_SORT',
