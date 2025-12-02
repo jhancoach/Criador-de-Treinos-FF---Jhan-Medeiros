@@ -1,4 +1,4 @@
-import React, { Component, useState, useEffect, useMemo, ErrorInfo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, ErrorInfo, useRef } from 'react';
 import { Users, Trophy, Crown, AlertTriangle, ArrowRight, ArrowLeft, Home, Download, RefreshCw, BarChart2, Save, Trash2, Edit2, Play, LayoutGrid, HelpCircle, X, Info, FileText, Instagram, Eye, Check, Palette, Monitor, Moon, Sun, Medal, Target, Flame, Share2, Calendar, Upload, ChevronLeft, ChevronRight, Maximize, Printer, UserPlus, ChevronDown, ChevronUp, Zap, UploadCloud, Binary, Image, Globe, Search, Layers, Copy, MessageCircle, ListPlus, Lock, Unlock, UserCheck, ClipboardList, Map as MapIcon, ShieldCheck, Share, Smartphone, MousePointer2 } from 'lucide-react';
 import { Team, TrainingMode, Step, MapData, MatchScore, ProcessedScore, Position, POINTS_SYSTEM, PlayerStats, SavedTrainingSession, OpenTraining, TrainingRequest } from './types';
 import { MAPS, WARNINGS } from './constants';
@@ -58,8 +58,8 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState = {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  state: ErrorBoundaryState = {
     hasError: false,
     error: null
   };
@@ -115,6 +115,7 @@ function App() {
   const [showSocialBanner, setShowSocialBanner] = useState(false);
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null); // For scoring details
   const [hasDraft, setHasDraft] = useState(false);
+  const [copiedTeamId, setCopiedTeamId] = useState<string | null>(null); // Feedback for share button
   
   // Waiting List State
   const [openTrainings, setOpenTrainings] = useState<OpenTraining[]>([]);
@@ -463,6 +464,34 @@ function App() {
           return t;
       }));
   }
+
+  // Share Team Info Logic
+  const shareTeamInfo = async (team: Team) => {
+    const playerList = team.players.length > 0 
+        ? team.players.map(p => `• ${p}`).join('\n') 
+        : '• (Sem jogadores registrados)';
+        
+    const textToShare = `🛡️ *${team.name.toUpperCase()}*\n\n👥 *LINE-UP:*\n${playerList}`;
+
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: `Time: ${team.name}`,
+                text: textToShare,
+            });
+        } catch (err) {
+            console.log('User cancelled share or API error', err);
+        }
+    } else {
+        try {
+            await navigator.clipboard.writeText(textToShare);
+            setCopiedTeamId(team.id);
+            setTimeout(() => setCopiedTeamId(null), 2000); // Visual feedback duration
+        } catch (err) {
+            alert('Não foi possível copiar automaticamente.');
+        }
+    }
+  };
 
   const goToSort = () => {
     if (teams.length === 0 && mode !== 'premium_plus') return;
@@ -1277,6 +1306,21 @@ function App() {
                                 className="flex-1 bg-transparent border-none outline-none font-bold text-white placeholder-gray-600 focus:bg-white/5 rounded px-2"
                                 placeholder="Nome do Time"
                             />
+                            
+                            <Tooltip content={copiedTeamId === team.id ? "Copiado!" : "Compartilhar Escalação"}>
+                                <button 
+                                    onClick={() => shareTeamInfo(team)}
+                                    className={`
+                                        p-2 rounded-lg transition-all duration-300 transform hover:scale-110 active:scale-95
+                                        ${copiedTeamId === team.id 
+                                            ? 'bg-green-500/20 text-green-500 ring-1 ring-green-500' 
+                                            : 'text-blue-500 hover:bg-blue-500/10 hover:text-blue-400'
+                                        }
+                                    `}
+                                >
+                                    {copiedTeamId === team.id ? <Check size={16} className="animate-bounce-slow"/> : <Share2 size={16} />}
+                                </button>
+                            </Tooltip>
 
                             <button onClick={() => confirmDeleteTeam(team.id)} className="text-red-900 hover:text-red-500 p-2"><Trash2 size={16}/></button>
                         </div>
@@ -1603,29 +1647,29 @@ function App() {
         const currentMaps = shuffledMaps.length > 0 ? shuffledMaps : MAPS.map(m => m.id);
 
         return (
-            <div className="w-full max-w-[1600px] p-4 flex flex-col h-[calc(100vh-140px)]">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-display font-bold">DEFINIÇÃO DE CALLS</h2>
-                    <div className="flex gap-2">
+            <div className="w-full max-w-[1600px] p-2 md:p-4 flex flex-col h-[calc(100dvh-80px)] md:h-[calc(100vh-140px)]">
+                <div className="flex flex-col md:flex-row justify-between items-center mb-2 md:mb-4 gap-2 shrink-0">
+                    <h2 className="text-xl md:text-2xl font-display font-bold">DEFINIÇÃO DE CALLS</h2>
+                    <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 no-scrollbar">
                         <Tooltip content="Importar estratégia salva (JSON)">
-                            <Button variant="ghost" onClick={handleImportClick}><UploadCloud size={18}/> Importar</Button>
+                            <Button variant="ghost" size="sm" onClick={handleImportClick} className="whitespace-nowrap"><UploadCloud size={16}/> <span className="hidden sm:inline">Importar</span></Button>
                         </Tooltip>
                         <Tooltip content="Salvar estratégia em arquivo">
-                            <Button variant="ghost" onClick={handleExportStrategy}><Download size={18}/> Exportar JSON</Button>
+                            <Button variant="ghost" size="sm" onClick={handleExportStrategy} className="whitespace-nowrap"><Download size={16}/> <span className="hidden sm:inline">JSON</span></Button>
                         </Tooltip>
                         <Tooltip content="Baixar imagem das calls">
-                            <Button variant="secondary" onClick={downloadStrategyImage}><Image size={18}/> Baixar Imagem</Button>
+                            <Button variant="secondary" size="sm" onClick={downloadStrategyImage} className="whitespace-nowrap"><Image size={16}/> <span className="hidden sm:inline">Imagem</span></Button>
                         </Tooltip>
-                        <Button onClick={() => setStep(Step.SCORING)}>PONTUAÇÃO <ArrowRight size={18}/></Button>
+                        <Button onClick={() => setStep(Step.SCORING)} size="sm" className="whitespace-nowrap">PONTUAÇÃO <ArrowRight size={16}/></Button>
                     </div>
                 </div>
 
-                <div className="mb-4 flex flex-wrap gap-2">
+                <div className="mb-2 md:mb-4 flex flex-wrap gap-2 shrink-0">
                     {WARNINGS.map(w => (
                         <button 
                             key={w} 
                             onClick={() => toggleWarning(w)}
-                            className={`px-3 py-1 rounded-full text-xs font-bold border transition-all ${selectedWarnings.includes(w) ? 'bg-red-500 text-white border-red-500' : 'bg-transparent text-muted border-theme hover:border-red-500'}`}
+                            className={`px-2 py-1 md:px-3 rounded-full text-[10px] md:text-xs font-bold border transition-all truncate max-w-[150px] md:max-w-none ${selectedWarnings.includes(w) ? 'bg-red-500 text-white border-red-500' : 'bg-transparent text-muted border-theme hover:border-red-500'}`}
                         >
                             {w}
                         </button>
@@ -1633,20 +1677,26 @@ function App() {
                 </div>
 
                 {/* Mobile Map Switcher */}
-                <div className="md:hidden flex items-center justify-between mb-4 bg-panel p-2 rounded-lg border border-theme">
-                    <button onClick={() => setActiveStrategyMapIndex(Math.max(0, activeStrategyMapIndex - 1))} disabled={activeStrategyMapIndex === 0} className="p-2 disabled:opacity-30"><ChevronLeft/></button>
-                    <span className="font-bold uppercase">{MAPS.find(m => m.id === currentMaps[activeStrategyMapIndex])?.name}</span>
-                    <button onClick={() => setActiveStrategyMapIndex(Math.min(currentMaps.length - 1, activeStrategyMapIndex + 1))} disabled={activeStrategyMapIndex === currentMaps.length - 1} className="p-2 disabled:opacity-30"><ChevronRight/></button>
+                <div className="md:hidden flex items-center justify-between mb-2 bg-panel p-2 rounded-lg border border-theme shadow-lg shrink-0">
+                    <button onClick={() => setActiveStrategyMapIndex(Math.max(0, activeStrategyMapIndex - 1))} disabled={activeStrategyMapIndex === 0} className="p-2 rounded-lg hover:bg-white/5 disabled:opacity-30 active:scale-95 transition-all"><ChevronLeft size={24}/></button>
+                    <div className="flex flex-col items-center">
+                        <span className="text-[10px] text-primary font-bold tracking-widest uppercase">Queda {activeStrategyMapIndex + 1}</span>
+                        <span className="font-bold uppercase text-lg leading-none">{MAPS.find(m => m.id === currentMaps[activeStrategyMapIndex])?.name}</span>
+                    </div>
+                    <button onClick={() => setActiveStrategyMapIndex(Math.min(currentMaps.length - 1, activeStrategyMapIndex + 1))} disabled={activeStrategyMapIndex === currentMaps.length - 1} className="p-2 rounded-lg hover:bg-white/5 disabled:opacity-30 active:scale-95 transition-all"><ChevronRight size={24}/></button>
                 </div>
 
-                <div className={`flex-1 bg-background/50 rounded-xl border border-theme ${mode === 'basic' ? 'overflow-y-auto' : 'md:overflow-hidden'}`}>
+                <div className={`flex-1 bg-background/50 md:rounded-xl md:border border-theme overflow-hidden relative shadow-inner w-full`}>
                     {mode === 'basic' ? (
-                        <div ref={strategyRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6 bg-[#111]">
+                        <div ref={strategyRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 bg-[#111] overflow-y-auto h-full custom-scrollbar">
                             {currentMaps.map((mapId, i) => {
                                 const mapData = MAPS.find(m => m.id === mapId);
                                 if(!mapData) return null;
+                                // In basic mode, only show active map on mobile to save space/scrolling
+                                const isVisibleMobile = i === activeStrategyMapIndex;
+                                
                                 return (
-                                    <div key={mapId} className="bg-panel border border-theme rounded-xl p-4">
+                                    <div key={mapId} className={`${isVisibleMobile ? 'block' : 'hidden md:block'} bg-panel border border-theme rounded-xl p-4`}>
                                         <div className="flex items-center gap-3 mb-4 pb-2 border-b border-gray-800">
                                             <img src={mapData.image} className="w-12 h-12 rounded-lg object-cover" alt={mapData.name}/>
                                             <div>
@@ -1676,13 +1726,16 @@ function App() {
                             })}
                         </div>
                     ) : (
-                        <div className="h-full flex flex-col md:flex-row overflow-x-auto snap-x snap-mandatory">
+                        <div className="h-full w-full flex flex-col md:flex-row md:overflow-x-auto snap-x snap-mandatory">
                             {currentMaps.map((mapId, i) => {
                                 const mapData = MAPS.find(m => m.id === mapId);
                                 if(!mapData) return null;
                                 const isVisibleMobile = i === activeStrategyMapIndex;
                                 return (
-                                    <div key={mapId} className={`${isVisibleMobile ? 'block' : 'hidden md:block'} md:w-1/2 lg:w-1/3 min-w-[350px] p-4 h-full shrink-0 snap-center`}>
+                                    <div 
+                                        key={mapId} 
+                                        className={`${isVisibleMobile ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-1/2 lg:w-1/3 md:min-w-[450px] p-0 md:p-4 h-full shrink-0 snap-center transition-all`}
+                                    >
                                         <DraggableMap 
                                             mapName={`QUEDA ${i+1}: ${mapData.name}`}
                                             image={mapData.image}
