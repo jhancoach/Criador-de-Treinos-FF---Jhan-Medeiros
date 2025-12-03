@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, ErrorInfo, useRef, Component, ReactNode } from 'react';
-import { Users, Trophy, Crown, AlertTriangle, ArrowRight, ArrowLeft, Home, Download, RefreshCw, BarChart2, Save, Trash2, Edit2, Play, LayoutGrid, HelpCircle, X, Info, FileText, Instagram, Eye, Check, Palette, Monitor, Moon, Sun, Medal, Target, Flame, Share2, Calendar, Upload, ChevronLeft, ChevronRight, Maximize, Printer, UserPlus, ChevronDown, ChevronUp, Zap, UploadCloud, Binary, Image, Globe, Search, Layers, Copy, MessageCircle, ListPlus, Lock, Unlock, UserCheck, ClipboardList, Map as MapIcon, ShieldCheck, Share, Smartphone, MousePointer2 } from 'lucide-react';
-import { Team, TrainingMode, Step, MapData, MatchScore, ProcessedScore, Position, POINTS_SYSTEM, PlayerStats, SavedTrainingSession, OpenTraining, TrainingRequest } from './types';
+import { Users, Trophy, Crown, AlertTriangle, ArrowRight, ArrowLeft, Home, Download, RefreshCw, BarChart2, Save, Trash2, Edit2, Play, LayoutGrid, HelpCircle, X, Info, FileText, Instagram, Eye, Check, Palette, Monitor, Moon, Sun, Medal, Target, Flame, Share2, Calendar, Upload, ChevronLeft, ChevronRight, Maximize, Printer, UserPlus, ChevronDown, ChevronUp, Zap, UploadCloud, Binary, Image, Globe, Search, Layers, Copy, MessageCircle, ListPlus, Lock, Unlock, UserCheck, ClipboardList, Map as MapIcon, ShieldCheck, Share, Smartphone, MousePointer2, Languages } from 'lucide-react';
+import { Team, TrainingMode, Step, MapData, MatchScore, ProcessedScore, Position, POINTS_SYSTEM, PlayerStats, SavedTrainingSession, OpenTraining, TrainingRequest, Language } from './types';
 import { MAPS, WARNINGS } from './constants';
 import { Button } from './components/Button';
 import { DraggableMap } from './components/DraggableMap';
@@ -23,12 +23,63 @@ const TEAM_COLORS = [
     '#E056FD', '#22A6B3', '#F0932B', '#6AB04C', '#EB4D4B'
 ];
 
+const TRANSLATIONS = {
+  pt: {
+    steps: { teams: 'Times', maps: 'Mapas', calls: 'Calls', scoring: 'Pontos', results: 'Resultados' },
+    hero: { subtitle: 'v2.0 - Edição Competitiva', title1: 'CRIADOR DE', title2: 'TREINOS', desc: 'A ferramenta definitiva para gestão de treinos de Free Fire. Estratégia, pontuação e análise em um só lugar.', start: 'COMEÇAR AGORA', queue: 'FILA', hub: 'Hub Público', restore: 'Restaurar Sessão', footer: 'Desenvolvido por Jhan Medeiros' },
+    features: { maps: 'Estratégia Visual', teams: 'Gestão Completa', stats: 'Rankings Auto', share: 'Relatórios Prontos' },
+    mode: { title: 'SELECIONE O MODO', basic: 'Básico', basicDesc: 'Ideal para treinos rápidos. Defina calls por nome de cidade.', premium: 'Premium', premiumDesc: 'Mapa interativo para posicionar times visualmente.', premiumPlus: 'Premium Plus', premiumPlusDesc: 'Importação de Replays JSON para estatísticas avançadas.', recommended: 'RECOMENDADO', feats: { cityList: 'Lista de Cidades', mapSort: 'Sorteio de Mapas', scoreTable: 'Tabela de Pontos', interactive: 'Mapas Interativos', dragDrop: 'Drag & Drop de Times', replay: 'Leitura de Replay (JSON)', mvp: 'MVP & Dano Total' } },
+    register: { title: 'REGISTRO DE TIMES', placeholder: 'Nome do Time...', add: 'ADICIONAR', next: 'PRÓXIMO', empty: 'Nenhum time adicionado.', copied: 'Copiado!', shareLineup: 'Compartilhar Escalação' },
+    waiting: { title: 'LISTA DE ESPERA', adminArea: 'Área do Organizador', yourName: 'Seu Nome/Nick', trainingName: 'Nome do Treino', pin: 'PIN de Segurança (ex: 1234)', create: 'CRIAR LISTA', successCreate: 'Lista de espera criada com sucesso!', requestTitle: 'Solicitar Vaga', selectTraining: 'Selecione um Treino...', yourTeam: 'Nome do Seu Time', sendRequest: 'ENVIAR SOLICITAÇÃO', successRequest: 'Solicitação enviada!', queue: 'Times na Fila', generate: 'GERAR TREINO', delete: 'Tem certeza que deseja apagar esta lista?' },
+    hub: { title: 'HUB DE TREINOS', desc: 'Seu Histórico de Sessões', descText: 'Este é o seu banco de dados local. Aqui ficam armazenados os treinos que você salvou manualmente na tela de Resultados. Utilize o Hub para revisar pontuações passadas, analisar o desempenho dos times ou carregar uma configuração antiga para iniciar um novo treino rapidamente.', info: 'Os dados são salvos no cache deste navegador.', empty: 'Nenhum treino salvo encontrado', load: 'Carregar este treino', delete: 'Excluir permanentemente', confirmLoad: 'Carregar este treino substituirá os dados atuais. Continuar?', emptyDesc: 'Para ver seus treinos aqui, clique em "Publicar no Hub" na tela de Resultados após finalizar uma sessão.' },
+    sort: { title: 'SORTEIO DE MAPAS', spin: 'SORTEAR MAPAS', respin: 'SORTEAR NOVAMENTE', strategy: 'DEFINIR ESTRATÉGIA' },
+    strategy: { title: 'DEFINIÇÃO DE CALLS', import: 'Importar', saveJson: 'JSON', saveImg: 'Imagem', scoring: 'PONTUAÇÃO', match: 'Queda', select: 'Selecione...', free: 'LIVRE' },
+    scoring: { title: 'PONTUAÇÃO', rank: 'Rank #', kills: 'Kills', loadReplay: 'Carregar Replay (.json)', results: 'VER RESULTADOS' },
+    report: { title: 'RELATÓRIO & COMPARTILHAMENTO', view: 'Visualização', raw: 'Texto Formatado', copy: 'Copiar Relatório', whatsapp: 'Enviar no WhatsApp', copied: 'Relatório copiado!', warnings: 'AVISOS', top3: 'TOP 3 ATUAL' },
+    dashboard: { title: 'RESULTADOS & ESTATÍSTICAS', tabRank: 'CLASSIFICAÇÃO', tabMvp: 'MVP & STATS', social: 'Banner Social', saveHub: 'Publicar no Hub', table: { team: 'Time', total: 'Pts Totales', pos: 'Posição (Pts)', killPts: 'Kills (Pts)', booyah: 'Booyahs', last: 'Última Queda', player: 'Jogador', mvpScore: 'MVP Score', damage: 'Dano', time: 'Tempo Vivo' }, emptyPlayer: 'Nenhum dado de jogador registrado ainda. Use o modo Premium Plus ou insira kills manualmente.', resultTitle: 'RESULTADO FINAL', points: 'PONTOS' },
+    viewer: { ranking: 'RANKING', drops: 'DROPS', exit: 'Sair' },
+    common: { error: 'Ops! Algo deu errado.', reload: 'Recarregar Página', back: 'Voltar', home: 'Ir para Início', draft: 'Salvar Rascunho', help: 'Ajuda', theme: 'Cor Destaque', language: 'Idioma', dark: 'Modo Escuro', light: 'Modo Claro', confirmHome: 'Tem certeza? Todo o progresso não salvo pode ser perdido.', draftSaved: 'Rascunho salvo no navegador!', draftLoaded: 'Rascunho carregado com sucesso!', yes: 'Sim', no: 'Não', cancel: 'Cancelar', overview: 'Visão Geral', howTo: 'Como Usar', interactiveMap: 'Mapa Interativo' }
+  },
+  en: {
+    steps: { teams: 'Teams', maps: 'Maps', calls: 'Strategy', scoring: 'Scoring', results: 'Results' },
+    hero: { subtitle: 'v2.0 - Competitive Edition', title1: 'TRAINING', title2: 'CREATOR', desc: 'The ultimate tool for Free Fire training management. Strategy, scoring, and analysis in one place.', start: 'START NOW', queue: 'QUEUE', hub: 'Public Hub', restore: 'Restore Session', footer: 'Developed by Jhan Medeiros' },
+    features: { maps: 'Visual Strategy', teams: 'Full Management', stats: 'Auto Rankings', share: 'Ready Reports' },
+    mode: { title: 'SELECT MODE', basic: 'Basic', basicDesc: 'Ideal for quick trainings. Define calls by city name.', premium: 'Premium', premiumDesc: 'Interactive map to position teams visually.', premiumPlus: 'Premium Plus', premiumPlusDesc: 'JSON Replay Import for advanced statistics.', recommended: 'RECOMMENDED', feats: { cityList: 'City List', mapSort: 'Map Sort', scoreTable: 'Score Table', interactive: 'Interactive Maps', dragDrop: 'Team Drag & Drop', replay: 'Replay Reading (JSON)', mvp: 'MVP & Total Damage' } },
+    register: { title: 'TEAM REGISTRATION', placeholder: 'Team Name...', add: 'ADD', next: 'NEXT', empty: 'No teams added.', copied: 'Copied!', shareLineup: 'Share Lineup' },
+    waiting: { title: 'WAITING LIST', adminArea: 'Organizer Area', yourName: 'Your Name/Nick', trainingName: 'Training Name', pin: 'Security PIN (e.g. 1234)', create: 'CREATE LIST', successCreate: 'Waiting list created successfully!', requestTitle: 'Request Entry', selectTraining: 'Select Training...', yourTeam: 'Your Team Name', sendRequest: 'SEND REQUEST', successRequest: 'Request sent!', queue: 'Teams in Queue', generate: 'GENERATE TRAINING', delete: 'Are you sure you want to delete this list?' },
+    hub: { title: 'TRAINING HUB', desc: 'Your Session History', descText: 'This is your local database. Trainings manually saved from the Results screen are stored here. Use the Hub to review past scores, analyze team performance, or load an old configuration to quickly start a new training.', info: 'Data is saved in this browser\'s cache.', empty: 'No saved trainings found', load: 'Load this training', delete: 'Delete permanently', confirmLoad: 'Loading this training will replace current data. Continue?', emptyDesc: 'To see your trainings here, click "Publish to Hub" on the Results screen after finishing a session.' },
+    sort: { title: 'MAP SORT', spin: 'SPIN MAPS', respin: 'SPIN AGAIN', strategy: 'DEFINE STRATEGY' },
+    strategy: { title: 'STRATEGY DEFINITION', import: 'Import', saveJson: 'JSON', saveImg: 'Image', scoring: 'SCORING', match: 'Match', select: 'Select...', free: 'FREE' },
+    scoring: { title: 'SCORING', rank: 'Rank #', kills: 'Kills', loadReplay: 'Load Replay (.json)', results: 'VIEW RESULTS' },
+    report: { title: 'REPORT & SHARE', view: 'Preview', raw: 'Formatted Text', copy: 'Copy Report', whatsapp: 'Send on WhatsApp', copied: 'Report copied!', warnings: 'WARNINGS', top3: 'CURRENT TOP 3' },
+    dashboard: { title: 'RESULTS & STATISTICS', tabRank: 'LEADERBOARD', tabMvp: 'MVP & STATS', social: 'Social Banner', saveHub: 'Publish to Hub', table: { team: 'Team', total: 'Total Pts', pos: 'Pos (Pts)', killPts: 'Kills (Pts)', booyah: 'Booyahs', last: 'Last Match', player: 'Player', mvpScore: 'MVP Score', damage: 'Damage', time: 'Time Alive' }, emptyPlayer: 'No player data yet. Use Premium Plus mode or enter kills manually.', resultTitle: 'FINAL RESULT', points: 'POINTS' },
+    viewer: { ranking: 'RANKING', drops: 'DROPS', exit: 'Exit' },
+    common: { error: 'Oops! Something went wrong.', reload: 'Reload Page', back: 'Back', home: 'Go Home', draft: 'Save Draft', help: 'Help', theme: 'Accent Color', language: 'Language', dark: 'Dark Mode', light: 'Light Mode', confirmHome: 'Are you sure? All unsaved progress may be lost.', draftSaved: 'Draft saved in browser!', draftLoaded: 'Draft loaded successfully!', yes: 'Yes', no: 'No', cancel: 'Cancel', overview: 'Overview', howTo: 'How to Use', interactiveMap: 'Interactive Map' }
+  },
+  es: {
+    steps: { teams: 'Equipos', maps: 'Mapas', calls: 'Calls', scoring: 'Puntos', results: 'Resultados' },
+    hero: { subtitle: 'v2.0 - Edición Competitiva', title1: 'CREADOR DE', title2: 'ENTRENAMIENTOS', desc: 'La herramienta definitiva para gestión de entrenamientos de Free Fire. Estrategia, puntuación y análisis en un solo lugar.', start: 'EMPEZAR AHORA', queue: 'COLA', hub: 'Hub Público', restore: 'Restaurar Sesión', footer: 'Desarrollado por Jhan Medeiros' },
+    features: { maps: 'Estrategia Visual', teams: 'Gestión Completa', stats: 'Rankings Auto', share: 'Reportes Listos' },
+    mode: { title: 'SELECCIONAR MODO', basic: 'Básico', basicDesc: 'Ideal para entrenamientos rápidos. Define calls por nombre de ciudad.', premium: 'Premium', premiumDesc: 'Mapa interactivo para posicionar equipos visualmente.', premiumPlus: 'Premium Plus', premiumPlusDesc: 'Importación de Replays JSON para estadísticas avanzadas.', recommended: 'RECOMENDADO', feats: { cityList: 'Lista de Ciudades', mapSort: 'Sorteo de Mapas', scoreTable: 'Tabla de Puntos', interactive: 'Mapas Interactivos', dragDrop: 'Drag & Drop de Equipos', replay: 'Lectura de Replay (JSON)', mvp: 'MVP y Daño Total' } },
+    register: { title: 'REGISTRO DE EQUIPOS', placeholder: 'Nombre del Equipo...', add: 'AGREGAR', next: 'SIGUIENTE', empty: 'Ningún equipo agregado.', copied: '¡Copiado!', shareLineup: 'Compartir Alineación' },
+    waiting: { title: 'LISTA DE ESPERA', adminArea: 'Área del Organizador', yourName: 'Tu Nombre/Nick', trainingName: 'Nombre del Entrenamiento', pin: 'PIN de Seguridad (ej: 1234)', create: 'CREAR LISTA', successCreate: '¡Lista de espera creada con éxito!', requestTitle: 'Solicitar Cupo', selectTraining: 'Selecciona un Entrenamiento...', yourTeam: 'Nombre de tu Equipo', sendRequest: 'ENVIAR SOLICITUD', successRequest: '¡Solicitud enviada!', queue: 'Equipos en Cola', generate: 'GENERAR ENTRENAMIENTO', delete: '¿Seguro que deseas eliminar esta lista?' },
+    hub: { title: 'HUB DE ENTRENAMIENTOS', desc: 'Tu Historial de Sesiones', descText: 'Esta es tu base de datos local. Aquí se almacenan los entrenamientos guardados manualmente desde la pantalla de Resultados. Utiliza el Hub para revisar puntuaciones pasadas, analizar el rendimiento de los equipos o cargar una configuración antigua para iniciar un nuevo entrenamiento rápidamente.', info: 'Los datos se guardan en la caché de este navegador.', empty: 'No se encontraron entrenamientos guardados', load: 'Cargar este entrenamiento', delete: 'Eliminar permanentemente', confirmLoad: 'Cargar este entrenamiento reemplazará los datos actuales. ¿Continuar?', emptyDesc: 'Para ver tus entrenamientos aquí, haz clic en "Publicar en Hub" en la pantalla de Resultados después de finalizar una sesión.' },
+    sort: { title: 'SORTEO DE MAPAS', spin: 'SORTEAR MAPAS', respin: 'SORTEAR NUEVAMENTE', strategy: 'DEFINIR ESTRATEGIA' },
+    strategy: { title: 'DEFINICIÓN DE CALLS', import: 'Importar', saveJson: 'JSON', saveImg: 'Imagen', scoring: 'PUNTUACIÓN', match: 'Partida', select: 'Seleccione...', free: 'LIBRE' },
+    scoring: { title: 'PUNTUACIÓN', rank: 'Rank #', kills: 'Kills', loadReplay: 'Cargar Replay (.json)', results: 'VER RESULTADOS' },
+    report: { title: 'REPORTE Y COMPARTIR', view: 'Vista Previa', raw: 'Texto Formateado', copy: 'Copiar Reporte', whatsapp: 'Enviar en WhatsApp', copied: '¡Reporte copiado!', warnings: 'AVISOS', top3: 'TOP 3 ACTUAL' },
+    dashboard: { title: 'RESULTADOS Y ESTADÍSTICAS', tabRank: 'CLASIFICACIÓN', tabMvp: 'MVP Y STATS', social: 'Banner Social', saveHub: 'Publicar en Hub', table: { team: 'Equipo', total: 'Pts Totales', pos: 'Pos (Pts)', killPts: 'Kills (Pts)', booyah: 'Booyahs', last: 'Última Partida', player: 'Jugador', mvpScore: 'MVP Score', damage: 'Daño', time: 'Tiempo Vivo' }, emptyPlayer: 'Aún no hay datos de jugadores. Usa el modo Premium Plus o ingresa kills manualmente.', resultTitle: 'RESULTADO FINAL', points: 'PUNTOS' },
+    viewer: { ranking: 'RANKING', drops: 'DROPS', exit: 'Salir' },
+    common: { error: '¡Ups! Algo salió mal.', reload: 'Recargar Página', back: 'Volver', home: 'Ir al Inicio', draft: 'Guardar Borrador', help: 'Ayuda', theme: 'Color Destacado', language: 'Idioma', dark: 'Modo Oscuro', light: 'Modo Claro', confirmHome: '¿Estás seguro? Todo el progreso no guardado se perderá.', draftSaved: '¡Borrador guardado en el navegador!', draftLoaded: '¡Borrador cargado con éxito!', yes: 'Sí', no: 'No', cancel: 'Cancelar', overview: 'Visión General', howTo: 'Cómo Usar', interactiveMap: 'Mapa Interativo' }
+  }
+};
+
 const STEPS_FLOW = [
-    { id: Step.TEAM_REGISTER, label: 'Times', icon: Users },
-    { id: Step.MAP_SORT, label: 'Mapas', icon: Globe },
-    { id: Step.STRATEGY, label: 'Calls', icon: Target },
-    { id: Step.SCORING, label: 'Pontos', icon: Edit2 },
-    { id: Step.DASHBOARD, label: 'Resultados', icon: BarChart2 },
+    { id: Step.TEAM_REGISTER, labelKey: 'teams', icon: Users },
+    { id: Step.MAP_SORT, labelKey: 'maps', icon: Globe },
+    { id: Step.STRATEGY, labelKey: 'calls', icon: Target },
+    { id: Step.SCORING, labelKey: 'scoring', icon: Edit2 },
+    { id: Step.DASHBOARD, labelKey: 'results', icon: BarChart2 },
 ];
 
 // Replay Data Interfaces
@@ -107,7 +158,10 @@ function App() {
   const [trainingName, setTrainingName] = useState('Treino Competitivo');
   const [activeTheme, setActiveTheme] = useState(THEMES[0]);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [lang, setLang] = useState<Language>('pt');
   
+  const t = TRANSLATIONS[lang];
+
   // Modals & UI State
   const [showHelp, setShowHelp] = useState(false);
   const [teamToDelete, setTeamToDelete] = useState<string | null>(null);
@@ -216,7 +270,7 @@ function App() {
 
   const handleHome = () => {
     if (teams.length > 0) {
-      if (window.confirm("Tem certeza? Todo o progresso não salvo pode ser perdido.")) {
+      if (window.confirm(t.common.confirmHome)) {
         setStep(Step.HOME);
       }
     } else {
@@ -234,7 +288,7 @@ function App() {
   // --- Waiting List Logic ---
   const createWaitingTraining = () => {
       if (!wlAdminName || !wlTrainingName || !wlPin) {
-          alert("Preencha todos os campos!");
+          alert(t.common.error);
           return;
       }
       const newTraining: OpenTraining = {
@@ -252,37 +306,37 @@ function App() {
       setWlAdminName('');
       setWlTrainingName('');
       setWlPin('');
-      alert("Lista de espera criada com sucesso!");
+      alert(t.waiting.successCreate);
   };
 
   const requestEntryToTraining = () => {
       if (!selectedTrainingId || !wlTeamRequestName.trim()) return;
       
-      const updated = openTrainings.map(t => {
-          if (t.id === selectedTrainingId) {
+      const updated = openTrainings.map(training => {
+          if (training.id === selectedTrainingId) {
               // Check dupes
-              if (t.requests.some(r => r.teamName.toLowerCase() === wlTeamRequestName.toLowerCase())) {
-                  alert("Este time já solicitou vaga.");
-                  return t;
+              if (training.requests.some(r => r.teamName.toLowerCase() === wlTeamRequestName.toLowerCase())) {
+                  alert(t.common.error);
+                  return training;
               }
               const newReq: TrainingRequest = {
                   id: Date.now().toString(),
                   teamName: wlTeamRequestName,
                   timestamp: Date.now()
               };
-              return { ...t, requests: [...t.requests, newReq] };
+              return { ...training, requests: [...training.requests, newReq] };
           }
-          return t;
+          return training;
       });
       
       setOpenTrainings(updated);
       localStorage.setItem('jhantraining_waiting_list', JSON.stringify(updated));
       setWlTeamRequestName('');
-      alert("Solicitação enviada!");
+      alert(t.waiting.successRequest);
   };
 
   const deleteWaitingTraining = (id: string) => {
-      if (!window.confirm("Tem certeza que deseja apagar esta lista?")) return;
+      if (!window.confirm(t.waiting.delete)) return;
       const updated = openTrainings.filter(t => t.id !== id);
       setOpenTrainings(updated);
       localStorage.setItem('jhantraining_waiting_list', JSON.stringify(updated));
@@ -300,7 +354,7 @@ function App() {
   };
 
   const importWaitingListToApp = (training: OpenTraining) => {
-      if (!window.confirm(`Isso irá iniciar um novo treino com ${training.requests.length} times. O progresso atual será perdido. Continuar?`)) return;
+      if (!window.confirm(t.hub.confirmLoad)) return;
       
       const newTeams: Team[] = training.requests.slice(0, 15).map(req => ({
           id: req.id,
@@ -331,7 +385,7 @@ function App() {
       };
       localStorage.setItem('jhantraining_draft', JSON.stringify(data));
       setHasDraft(true);
-      alert("Rascunho salvo no navegador!");
+      alert(t.common.draftSaved);
   };
 
   const loadDraft = () => {
@@ -349,10 +403,10 @@ function App() {
                if(data.matchScores) setMatchScores(data.matchScores);
                if(data.playerExtendedStats) setPlayerExtendedStats(data.playerExtendedStats);
                if(data.step) setStep(data.step);
-               alert("Rascunho carregado com sucesso!");
+               alert(t.common.draftLoaded);
            } catch(e) {
                console.error(e);
-               alert("Erro ao carregar rascunho.");
+               alert(t.common.error);
            }
        }
   };
@@ -437,7 +491,7 @@ function App() {
           setTeams(prev => prev.map(t => t.id === activeTeamIdForLogo ? { ...t, logo: resizedBase64 } : t));
       } catch (e) {
           console.error("Error resizing image", e);
-          alert("Erro ao processar imagem.");
+          alert(t.common.error);
       }
       
       setActiveTeamIdForLogo(null);
@@ -488,7 +542,7 @@ function App() {
             setCopiedTeamId(team.id);
             setTimeout(() => setCopiedTeamId(null), 2000); // Visual feedback duration
         } catch (err) {
-            alert('Não foi possível copiar automaticamente.');
+            alert(t.register.copied);
         }
     }
   };
@@ -599,7 +653,7 @@ function App() {
               alert("Estratégia carregada com sucesso!");
               setStep(Step.STRATEGY); // Jump to strategy to see loaded content
           } catch (error) {
-              alert("Erro ao ler arquivo: Formato inválido.");
+              alert(t.common.error);
               console.error(error);
           }
       };
@@ -623,7 +677,7 @@ function App() {
             link.click();
         } catch (error) {
             console.error('oops, something went wrong!', error);
-            alert("Erro ao gerar imagem. Tente novamente.");
+            alert(t.common.error);
         }
     }
   };
@@ -944,7 +998,7 @@ function App() {
 
   const saveToHub = () => {
       if (teams.length === 0) {
-          alert("Nenhum time cadastrado para salvar.");
+          alert(t.register.empty);
           return;
       }
       
@@ -971,11 +1025,11 @@ function App() {
       const updated = [newSession, ...savedTrainings];
       setSavedTrainings(updated);
       localStorage.setItem('jhantraining_hub_data', JSON.stringify(updated));
-      alert("Treino salvo no Hub com sucesso!");
+      alert(t.hub.title + " " + t.common.yes);
   };
 
   const loadFromHub = (session: SavedTrainingSession) => {
-      if (window.confirm("Carregar este treino substituirá os dados atuais. Continuar?")) {
+      if (window.confirm(t.hub.confirmLoad)) {
           try {
               const data = JSON.parse(session.data);
               setTrainingName(data.trainingName || 'Treino Importado');
@@ -991,14 +1045,14 @@ function App() {
               setStep(Step.DASHBOARD);
           } catch (e) {
               console.error(e);
-              alert("Erro ao carregar dados do treino.");
+              alert(t.common.error);
           }
       }
   };
 
   const deleteFromHub = (id: string, e: React.MouseEvent) => {
       e.stopPropagation();
-      if (window.confirm("Tem certeza que deseja apagar este treino do histórico?")) {
+      if (window.confirm(t.common.confirmHome)) {
           const updated = savedTrainings.filter(s => s.id !== id);
           setSavedTrainings(updated);
           localStorage.setItem('jhantraining_hub_data', JSON.stringify(updated));
@@ -1015,7 +1069,7 @@ function App() {
             link.click();
         } catch (error) {
             console.error('oops, something went wrong!', error);
-            alert("Erro ao gerar imagem. Tente novamente.");
+            alert(t.common.error);
         }
     }
   };
@@ -1026,30 +1080,21 @@ function App() {
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
             <div className="bg-panel border border-theme rounded-xl max-w-lg w-full p-6 relative">
                 <button onClick={() => setShowHelp(false)} className="absolute top-4 right-4 text-muted hover:text-white"><X/></button>
-                <h3 className="text-2xl font-bold mb-4 text-primary flex items-center gap-2"><HelpCircle size={24}/> Ajuda & Tutorial</h3>
+                <h3 className="text-2xl font-bold mb-4 text-primary flex items-center gap-2"><HelpCircle size={24}/> {t.common.help}</h3>
                 <div className="space-y-4 text-gray-300 text-sm max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
                     <section>
-                        <h4 className="font-bold text-white mb-1">🎯 Visão Geral</h4>
-                        <p>O JhanTraining (Criador de Treinos) facilita a gestão de salas personalizadas, desde o sorteio de mapas até o cálculo automático de pontuação.</p>
+                        <h4 className="font-bold text-white mb-1">🎯 {t.hero.title2}</h4>
+                        <p>{t.hero.desc}</p>
                     </section>
                     <section>
-                        <h4 className="font-bold text-white mb-1">🚀 Como Usar</h4>
+                        <h4 className="font-bold text-white mb-1">🚀 {t.common.help}</h4>
                         <ol className="list-decimal list-inside space-y-1 ml-1 text-xs">
-                            <li>Cadastre seus times na aba <strong>Times</strong>.</li>
-                            <li>Sorteie os mapas em <strong>Mapas</strong>.</li>
-                            <li>Defina as calls (cidades) ou posições exatas em <strong>Calls</strong>.</li>
-                            <li>Após as quedas, insira as posições e kills em <strong>Pontos</strong>.</li>
-                            <li>Acompanhe o ranking em tempo real em <strong>Resultados</strong>.</li>
+                            <li>{t.register.title}</li>
+                            <li>{t.sort.title}</li>
+                            <li>{t.strategy.title}</li>
+                            <li>{t.scoring.title}</li>
+                            <li>{t.dashboard.title}</li>
                         </ol>
-                    </section>
-                    <section>
-                        <h4 className="font-bold text-white mb-1">🗺️ Mapa Interativo</h4>
-                        <ul className="list-disc list-inside space-y-1 ml-1 text-xs">
-                            <li>Use <strong>Zoom</strong> para aproximar.</li>
-                            <li><strong>Arraste</strong> o fundo para mover o mapa.</li>
-                            <li><strong>Arraste</strong> os ícones dos times para posicionar.</li>
-                            <li>Os ícones alinham-se automaticamente (Snapping).</li>
-                        </ul>
                     </section>
                 </div>
             </div>
@@ -1066,10 +1111,10 @@ function App() {
                 <div className="relative z-10">
                     <AlertTriangle className="text-red-500 w-16 h-16 mx-auto mb-4"/>
                     <h3 className="text-xl font-bold mb-2 text-white">Excluir Time?</h3>
-                    <p className="text-gray-400 mb-6 text-sm">Esta ação removerá o time permanentemente do treino atual.</p>
+                    <p className="text-gray-400 mb-6 text-sm">{t.common.confirmHome}</p>
                     <div className="flex gap-4">
-                        <Button variant="secondary" onClick={() => setTeamToDelete(null)} className="flex-1 border-gray-700 hover:bg-gray-800 text-white">Cancelar</Button>
-                        <Button variant="danger" onClick={executeDeleteTeam} className="flex-1 bg-red-600 hover:bg-red-700 text-white border-none shadow-lg shadow-red-900/50">Sim, Excluir</Button>
+                        <Button variant="secondary" onClick={() => setTeamToDelete(null)} className="flex-1 border-gray-700 hover:bg-gray-800 text-white">{t.common.cancel}</Button>
+                        <Button variant="danger" onClick={executeDeleteTeam} className="flex-1 bg-red-600 hover:bg-red-700 text-white border-none shadow-lg shadow-red-900/50">{t.common.yes}</Button>
                     </div>
                 </div>
             </div>
@@ -1101,6 +1146,8 @@ function App() {
                     const isActive = idx === currentIndex;
                     const isCompleted = idx < currentIndex;
                     const Icon = s.icon;
+                    // @ts-ignore
+                    const label = t.steps[s.labelKey];
 
                     return (
                         <div key={s.id} className="flex flex-col items-center gap-2 bg-background p-2 rounded-xl">
@@ -1114,7 +1161,7 @@ function App() {
                             >
                                 <Icon size={20} />
                             </div>
-                            <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? 'text-primary' : 'text-muted'}`}>{s.label}</span>
+                            <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? 'text-primary' : 'text-muted'}`}>{label}</span>
                         </div>
                     )
                 })}
@@ -1140,43 +1187,43 @@ function App() {
             <div className="flex flex-col items-start space-y-8 animate-in slide-in-from-left duration-700">
                 <div className="space-y-4">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-md text-xs font-medium text-primary uppercase tracking-widest">
-                        <Zap size={14} fill="currentColor"/> v2.0 - Edição Competitiva
+                        <Zap size={14} fill="currentColor"/> {t.hero.subtitle}
                     </div>
                     <h1 className="text-6xl lg:text-8xl font-black tracking-tighter leading-none uppercase">
-                        CRIADOR DE<br/>
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-white">TREINOS</span>
+                        {t.hero.title1}<br/>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-white">{t.hero.title2}</span>
                     </h1>
                     <p className="text-lg lg:text-xl text-gray-400 max-w-lg leading-relaxed">
-                        A ferramenta definitiva para gestão de treinos de Free Fire. Estratégia, pontuação e análise em um só lugar.
+                        {t.hero.desc}
                     </p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
-                    <Tooltip content="Iniciar configuração do treino" className="flex-1">
+                    <Tooltip content={t.hero.start} className="flex-1">
                         <Button onClick={handleStart} size="lg" className="w-full h-16 text-lg font-bold shadow-[0_0_30px_rgba(var(--color-primary),0.3)] bg-primary text-black hover:bg-white border-none hover:scale-105 transition-all">
-                            COMEÇAR AGORA <ArrowRight size={24} className="ml-2"/>
+                            {t.hero.start} <ArrowRight size={24} className="ml-2"/>
                         </Button>
                     </Tooltip>
-                    <Tooltip content="Lista de espera online" className="flex-1">
+                    <Tooltip content={t.hero.queue} className="flex-1">
                         <Button onClick={() => setStep(Step.WAITING_LIST)} variant="secondary" className="w-full h-16 text-lg font-bold bg-white/5 border-white/10 hover:bg-white/10 text-white backdrop-blur-md">
-                            <ListPlus size={24}/> FILA
+                            <ListPlus size={24}/> {t.hero.queue}
                         </Button>
                     </Tooltip>
                 </div>
 
                 <div className="flex items-center gap-6 text-sm text-gray-500 font-mono pt-4">
-                    <button onClick={() => setStep(Step.PUBLIC_HUB)} className="hover:text-primary transition-colors flex items-center gap-2"><Globe size={16}/> Hub Público</button>
-                    {hasDraft && <button onClick={loadDraft} className="hover:text-primary transition-colors flex items-center gap-2 text-primary"><Save size={16}/> Restaurar Sessão</button>}
+                    <button onClick={() => setStep(Step.PUBLIC_HUB)} className="hover:text-primary transition-colors flex items-center gap-2"><Globe size={16}/> {t.hero.hub}</button>
+                    {hasDraft && <button onClick={loadDraft} className="hover:text-primary transition-colors flex items-center gap-2 text-primary"><Save size={16}/> {t.hero.restore}</button>}
                 </div>
             </div>
 
             {/* Right Column: Feature Visuals */}
             <div className="hidden lg:grid grid-cols-2 gap-6 animate-in slide-in-from-right duration-700 delay-200">
                 {[
-                    { icon: MapIcon, title: 'Mapas', desc: 'Estratégia Visual', color: 'bg-blue-500' },
-                    { icon: Users, title: 'Times', desc: 'Gestão Completa', color: 'bg-green-500' },
-                    { icon: BarChart2, title: 'Stats', desc: 'Rankings Auto', color: 'bg-purple-500' },
-                    { icon: Share2, title: 'Share', desc: 'Relatórios Prontos', color: 'bg-pink-500' }
+                    { icon: MapIcon, title: t.steps.maps, desc: t.features.maps, color: 'bg-blue-500' },
+                    { icon: Users, title: t.steps.teams, desc: t.features.teams, color: 'bg-green-500' },
+                    { icon: BarChart2, title: 'Stats', desc: t.features.stats, color: 'bg-purple-500' },
+                    { icon: Share2, title: 'Share', desc: t.features.share, color: 'bg-pink-500' }
                 ].map((item, i) => (
                     <div key={i} className="group bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-2xl hover:bg-white/10 transition-all hover:-translate-y-2 cursor-default">
                         <div className={`w-12 h-12 rounded-xl ${item.color} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform`}>
@@ -1197,7 +1244,7 @@ function App() {
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-primary transition-all duration-300 font-mono uppercase tracking-widest group bg-black/50 px-4 py-2 rounded-full border border-white/5 hover:border-primary/30 backdrop-blur-sm"
             >
-                <span>Desenvolvido por Jhan Medeiros</span>
+                <span>{t.hero.footer}</span>
                 <Instagram size={14} className="group-hover:text-pink-500 transition-colors"/>
             </a>
             <span className="text-[10px] text-gray-700">&copy; {new Date().getFullYear()} JhanTraining System</span>
@@ -1207,34 +1254,34 @@ function App() {
 
   const renderModeSelect = () => (
     <div className="flex flex-col items-center max-w-5xl">
-        <h2 className="text-3xl font-display font-bold mb-8">SELECIONE O MODO</h2>
+        <h2 className="text-3xl font-display font-bold mb-8">{t.mode.title}</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
             {/* BASIC */}
             <div onClick={() => selectMode('basic')} className="bg-panel border border-theme hover:border-primary cursor-pointer rounded-xl p-6 transition-all hover:-translate-y-2 group">
                 <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-black transition-colors">
                     <FileText size={24}/>
                 </div>
-                <h3 className="text-xl font-bold mb-2">Básico</h3>
-                <p className="text-sm text-muted mb-4">Ideal para treinos rápidos. Defina calls por nome de cidade.</p>
+                <h3 className="text-xl font-bold mb-2">{t.mode.basic}</h3>
+                <p className="text-sm text-muted mb-4">{t.mode.basicDesc}</p>
                 <ul className="text-xs space-y-2 text-gray-400">
-                    <li className="flex gap-2"><Check size={12} className="text-green-500"/> Lista de Cidades</li>
-                    <li className="flex gap-2"><Check size={12} className="text-green-500"/> Sorteio de Mapas</li>
-                    <li className="flex gap-2"><Check size={12} className="text-green-500"/> Tabela de Pontos</li>
+                    <li className="flex gap-2"><Check size={12} className="text-green-500"/> {t.mode.feats.cityList}</li>
+                    <li className="flex gap-2"><Check size={12} className="text-green-500"/> {t.mode.feats.mapSort}</li>
+                    <li className="flex gap-2"><Check size={12} className="text-green-500"/> {t.mode.feats.scoreTable}</li>
                 </ul>
             </div>
 
             {/* PREMIUM */}
             <div onClick={() => selectMode('premium')} className="bg-panel border border-primary/50 cursor-pointer rounded-xl p-6 transition-all hover:-translate-y-2 relative overflow-hidden group shadow-[0_0_20px_rgba(var(--color-primary),0.1)]">
-                <div className="absolute top-0 right-0 bg-primary text-black text-[10px] font-bold px-2 py-1">RECOMENDADO</div>
+                <div className="absolute top-0 right-0 bg-primary text-black text-[10px] font-bold px-2 py-1">{t.mode.recommended}</div>
                 <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-black transition-colors">
                     <MapIcon size={24}/>
                 </div>
-                <h3 className="text-xl font-bold mb-2">Premium</h3>
-                <p className="text-sm text-muted mb-4">Mapa interativo para posicionar times visualmente.</p>
+                <h3 className="text-xl font-bold mb-2">{t.mode.premium}</h3>
+                <p className="text-sm text-muted mb-4">{t.mode.premiumDesc}</p>
                 <ul className="text-xs space-y-2 text-gray-400">
-                    <li className="flex gap-2"><Check size={12} className="text-green-500"/> Tudo do Básico</li>
-                    <li className="flex gap-2"><Check size={12} className="text-green-500"/> Mapas Interativos</li>
-                    <li className="flex gap-2"><Check size={12} className="text-green-500"/> Drag & Drop de Times</li>
+                    <li className="flex gap-2"><Check size={12} className="text-green-500"/> {t.mode.basic}</li>
+                    <li className="flex gap-2"><Check size={12} className="text-green-500"/> {t.mode.feats.interactive}</li>
+                    <li className="flex gap-2"><Check size={12} className="text-green-500"/> {t.mode.feats.dragDrop}</li>
                 </ul>
             </div>
 
@@ -1243,12 +1290,12 @@ function App() {
                  <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4 group-hover:bg-purple-500 group-hover:text-white transition-colors">
                     <Zap size={24}/>
                 </div>
-                <h3 className="text-xl font-bold mb-2">Premium Plus</h3>
-                <p className="text-sm text-muted mb-4">Importação de Replays JSON para estatísticas avançadas.</p>
+                <h3 className="text-xl font-bold mb-2">{t.mode.premiumPlus}</h3>
+                <p className="text-sm text-muted mb-4">{t.mode.premiumPlusDesc}</p>
                 <ul className="text-xs space-y-2 text-gray-400">
-                    <li className="flex gap-2"><Check size={12} className="text-purple-500"/> Tudo do Premium</li>
-                    <li className="flex gap-2"><Check size={12} className="text-purple-500"/> Leitura de Replay (JSON)</li>
-                    <li className="flex gap-2"><Check size={12} className="text-purple-500"/> MVP & Dano Total</li>
+                    <li className="flex gap-2"><Check size={12} className="text-purple-500"/> {t.mode.premium}</li>
+                    <li className="flex gap-2"><Check size={12} className="text-purple-500"/> {t.mode.feats.replay}</li>
+                    <li className="flex gap-2"><Check size={12} className="text-purple-500"/> {t.mode.feats.mvp}</li>
                 </ul>
             </div>
         </div>
@@ -1257,22 +1304,22 @@ function App() {
 
   const renderTeamRegister = () => (
     <div className="flex flex-col items-center w-full max-w-4xl h-full">
-        <h2 className="text-3xl font-display font-bold mb-8">REGISTRO DE TIMES</h2>
+        <h2 className="text-3xl font-display font-bold mb-8">{t.register.title}</h2>
         
         <div className="w-full bg-panel border border-theme rounded-xl p-6 mb-8 flex flex-col max-h-[60vh]">
             <div className="flex flex-col md:flex-row gap-4 mb-6 shrink-0">
-                <Tooltip content="Nome do novo time" className="flex-1">
+                <Tooltip content={t.register.placeholder} className="flex-1">
                     <input 
                         value={newTeamName}
                         onChange={(e) => setNewTeamName(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && addTeam()}
-                        placeholder="Nome do Time..." 
+                        placeholder={t.register.placeholder}
                         className="w-full bg-black/50 border border-gray-700 rounded-lg px-4 py-3 focus:border-primary outline-none text-white"
                     />
                 </Tooltip>
-                <Tooltip content="Adicionar time à lista">
+                <Tooltip content={t.register.add}>
                     <Button onClick={addTeam} disabled={!newTeamName.trim() || teams.length >= 15}>
-                        <UserPlus size={20}/> ADICIONAR
+                        <UserPlus size={20}/> {t.register.add}
                     </Button>
                 </Tooltip>
             </div>
@@ -1316,7 +1363,7 @@ function App() {
                                 placeholder="Nome do Time"
                             />
                             
-                            <Tooltip content={copiedTeamId === team.id ? "Copiado!" : "Compartilhar Escalação"}>
+                            <Tooltip content={copiedTeamId === team.id ? t.register.copied : t.register.shareLineup}>
                                 <button 
                                     onClick={() => shareTeamInfo(team)}
                                     className={`
@@ -1358,13 +1405,13 @@ function App() {
                         </div>
                     </div>
                 ))}
-                {teams.length === 0 && <div className="col-span-2 text-center text-muted py-8">Nenhum time adicionado.</div>}
+                {teams.length === 0 && <div className="col-span-2 text-center text-muted py-8">{t.register.empty}</div>}
             </div>
         </div>
 
         <div className="flex justify-end w-full">
             <Button onClick={goToSort} disabled={teams.length === 0 && mode !== 'premium_plus'}>
-                PRÓXIMO <ArrowRight size={20}/>
+                {t.register.next} <ArrowRight size={20}/>
             </Button>
         </div>
         
@@ -1381,45 +1428,45 @@ function App() {
 
   const renderWaitingList = () => (
     <div className="flex flex-col items-center w-full max-w-4xl">
-        <h2 className="text-3xl font-display font-bold mb-8">LISTA DE ESPERA</h2>
+        <h2 className="text-3xl font-display font-bold mb-8">{t.waiting.title}</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full mb-12">
             {/* ADMIN SIDE */}
             <div className="bg-panel border border-theme rounded-xl p-6">
-                <h3 className="font-bold text-xl mb-4 flex items-center gap-2"><Crown size={20} className="text-yellow-500"/> Área do Organizador</h3>
+                <h3 className="font-bold text-xl mb-4 flex items-center gap-2"><Crown size={20} className="text-yellow-500"/> {t.waiting.adminArea}</h3>
                 <div className="space-y-4">
-                    <input value={wlAdminName} onChange={e => setWlAdminName(e.target.value)} placeholder="Seu Nome/Nick" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-sm"/>
-                    <input value={wlTrainingName} onChange={e => setWlTrainingName(e.target.value)} placeholder="Nome do Treino" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-sm"/>
-                    <input value={wlPin} onChange={e => setWlPin(e.target.value)} placeholder="PIN de Segurança (ex: 1234)" type="password" maxLength={4} className="w-full bg-black/50 border border-gray-700 rounded p-3 text-sm"/>
-                    <Button onClick={createWaitingTraining} className="w-full">CRIAR LISTA</Button>
+                    <input value={wlAdminName} onChange={e => setWlAdminName(e.target.value)} placeholder={t.waiting.yourName} className="w-full bg-black/50 border border-gray-700 rounded p-3 text-sm"/>
+                    <input value={wlTrainingName} onChange={e => setWlTrainingName(e.target.value)} placeholder={t.waiting.trainingName} className="w-full bg-black/50 border border-gray-700 rounded p-3 text-sm"/>
+                    <input value={wlPin} onChange={e => setWlPin(e.target.value)} placeholder={t.waiting.pin} type="password" maxLength={4} className="w-full bg-black/50 border border-gray-700 rounded p-3 text-sm"/>
+                    <Button onClick={createWaitingTraining} className="w-full">{t.waiting.create}</Button>
                 </div>
             </div>
 
             {/* TEAM SIDE */}
             <div className="bg-panel border border-theme rounded-xl p-6">
-                <h3 className="font-bold text-xl mb-4 flex items-center gap-2"><Users size={20}/> Solicitar Vaga</h3>
+                <h3 className="font-bold text-xl mb-4 flex items-center gap-2"><Users size={20}/> {t.waiting.requestTitle}</h3>
                 <div className="space-y-4">
                     <select 
                         value={selectedTrainingId || ''} 
                         onChange={e => setSelectedTrainingId(e.target.value)} 
                         className="w-full bg-black/50 border border-gray-700 rounded p-3 text-sm text-white"
                     >
-                        <option value="">Selecione um Treino...</option>
+                        <option value="">{t.waiting.selectTraining}</option>
                         {openTrainings.map(t => <option key={t.id} value={t.id}>{t.trainingName} (Admin: {t.adminName})</option>)}
                     </select>
-                    <input value={wlTeamRequestName} onChange={e => setWlTeamRequestName(e.target.value)} placeholder="Nome do Seu Time" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-sm"/>
-                    <Button onClick={requestEntryToTraining} variant="secondary" className="w-full" disabled={!selectedTrainingId}>ENVIAR SOLICITAÇÃO</Button>
+                    <input value={wlTeamRequestName} onChange={e => setWlTeamRequestName(e.target.value)} placeholder={t.waiting.yourTeam} className="w-full bg-black/50 border border-gray-700 rounded p-3 text-sm"/>
+                    <Button onClick={requestEntryToTraining} variant="secondary" className="w-full" disabled={!selectedTrainingId}>{t.waiting.sendRequest}</Button>
                 </div>
             </div>
         </div>
 
         {/* LISTS DISPLAY */}
-        {openTrainings.map(t => (
-            <div key={t.id} className="w-full bg-panel border border-theme rounded-xl p-6 mb-4">
+        {openTrainings.map(training => (
+            <div key={training.id} className="w-full bg-panel border border-theme rounded-xl p-6 mb-4">
                 <div className="flex justify-between items-start mb-4">
                     <div>
-                        <h3 className="font-bold text-xl">{t.trainingName}</h3>
-                        <div className="text-sm text-muted">Admin: {t.adminName} • Criado em {new Date(t.createdAt).toLocaleDateString()}</div>
+                        <h3 className="font-bold text-xl">{training.trainingName}</h3>
+                        <div className="text-sm text-muted">Admin: {training.adminName} • Criado em {new Date(training.createdAt).toLocaleDateString()}</div>
                     </div>
                     <div className="flex gap-2">
                         {!isAdminUnlocked && (
@@ -1431,28 +1478,28 @@ function App() {
                                     onChange={e => setWlUnlockPin(e.target.value)}
                                     className="w-16 bg-black border border-gray-700 rounded px-2 text-center"
                                 />
-                                <Button size="sm" variant="secondary" onClick={() => checkAdminPin(t)}><Lock size={14}/></Button>
+                                <Button size="sm" variant="secondary" onClick={() => checkAdminPin(training)}><Lock size={14}/></Button>
                             </div>
                         )}
                         {isAdminUnlocked && (
                             <>
-                                <Button size="sm" onClick={() => importWaitingListToApp(t)}><Zap size={14}/> GERAR TREINO</Button>
-                                <Button size="sm" variant="danger" onClick={() => deleteWaitingTraining(t.id)}><Trash2 size={14}/></Button>
+                                <Button size="sm" onClick={() => importWaitingListToApp(training)}><Zap size={14}/> {t.waiting.generate}</Button>
+                                <Button size="sm" variant="danger" onClick={() => deleteWaitingTraining(training.id)}><Trash2 size={14}/></Button>
                             </>
                         )}
                     </div>
                 </div>
 
                 <div className="bg-black/40 rounded-lg p-4">
-                     <h4 className="font-bold text-sm text-muted uppercase mb-2">Times na Fila ({t.requests.length})</h4>
+                     <h4 className="font-bold text-sm text-muted uppercase mb-2">{t.waiting.queue} ({training.requests.length})</h4>
                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                         {t.requests.map((r, i) => (
+                         {training.requests.map((r, i) => (
                              <div key={r.id} className="bg-gray-800 rounded px-2 py-1 text-sm flex justify-between items-center">
                                  <span>{i+1}. {r.teamName}</span>
                                  <span className="text-[10px] text-gray-500">{new Date(r.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                              </div>
                          ))}
-                         {t.requests.length === 0 && <span className="text-muted text-sm italic">Nenhum time ainda.</span>}
+                         {training.requests.length === 0 && <span className="text-muted text-sm italic">Nenhum time ainda.</span>}
                      </div>
                 </div>
             </div>
@@ -1462,7 +1509,7 @@ function App() {
 
   const renderPublicHub = () => (
     <div className="flex flex-col items-center w-full max-w-4xl">
-        <h2 className="text-3xl font-display font-bold mb-8">HUB DE TREINOS</h2>
+        <h2 className="text-3xl font-display font-bold mb-8">{t.hub.title}</h2>
         
         {/* Description Banner */}
         <div className="bg-panel border border-theme rounded-xl p-6 mb-8 w-full flex flex-col md:flex-row items-center gap-6 shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1470,14 +1517,13 @@ function App() {
                 <Globe size={32} />
             </div>
             <div className="text-center md:text-left">
-                <h3 className="font-bold text-white text-lg mb-2">Seu Histórico de Sessões</h3>
+                <h3 className="font-bold text-white text-lg mb-2">{t.hub.desc}</h3>
                 <p className="text-muted text-sm leading-relaxed max-w-2xl">
-                    Este é o seu banco de dados local. Aqui ficam armazenados os treinos que você salvou manualmente na tela de Resultados. 
-                    Utilize o Hub para <strong>revisar pontuações passadas</strong>, analisar o desempenho dos times ou <strong>carregar uma configuração antiga</strong> para iniciar um novo treino rapidamente.
+                    {t.hub.descText}
                 </p>
                 <div className="mt-3 flex items-center justify-center md:justify-start gap-2 text-xs text-gray-500 bg-black/20 w-fit px-3 py-1 rounded-full mx-auto md:mx-0">
                     <Info size={12} />
-                    <span>Os dados são salvos no cache deste navegador.</span>
+                    <span>{t.hub.info}</span>
                 </div>
             </div>
         </div>
@@ -1494,17 +1540,17 @@ function App() {
                             </h3>
                             <div className="text-sm text-muted flex flex-wrap gap-4 mt-2">
                                 <span className="flex items-center gap-1.5"><Calendar size={14} className="text-primary/70"/> {session.date}</span>
-                                <span className="flex items-center gap-1.5"><Users size={14} className="text-primary/70"/> {session.teamsCount} Times</span>
-                                <span className="flex items-center gap-1.5"><ListPlus size={14} className="text-primary/70"/> {session.matchesCount} Quedas</span>
+                                <span className="flex items-center gap-1.5"><Users size={14} className="text-primary/70"/> {session.teamsCount} {t.steps.teams}</span>
+                                <span className="flex items-center gap-1.5"><ListPlus size={14} className="text-primary/70"/> {session.matchesCount} {t.strategy.match}s</span>
                             </div>
                         </div>
                         <div className="flex gap-2">
-                            <Tooltip content="Carregar este treino">
+                            <Tooltip content={t.hub.load}>
                                 <Button size="sm" variant="secondary" className="hover:bg-primary hover:text-black border-gray-700">
                                     <Upload size={16}/>
                                 </Button>
                             </Tooltip>
-                            <Tooltip content="Excluir permanentemente">
+                            <Tooltip content={t.hub.delete}>
                                 <Button size="sm" variant="ghost" className="text-red-500 hover:bg-red-500/10 hover:text-red-400" onClick={(e) => deleteFromHub(session.id, e)}>
                                     <Trash2 size={16}/>
                                 </Button>
@@ -1527,8 +1573,8 @@ function App() {
                     <div className="bg-gray-800/50 p-4 rounded-full mb-4">
                         <Save size={32} className="text-muted"/>
                     </div>
-                    <div className="text-muted font-medium mb-1">Nenhum treino salvo encontrado</div>
-                    <div className="text-xs text-gray-500 max-w-xs text-center">Para ver seus treinos aqui, clique em "Publicar no Hub" na tela de Resultados após finalizar uma sessão.</div>
+                    <div className="text-muted font-medium mb-1">{t.hub.empty}</div>
+                    <div className="text-xs text-gray-500 max-w-xs text-center">{t.hub.emptyDesc}</div>
                 </div>
             )}
         </div>
@@ -1541,10 +1587,10 @@ function App() {
               <h1 className="text-4xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-primary to-white">{trainingName}</h1>
               <div className="flex gap-2">
                   <div className="flex bg-gray-900 rounded p-1">
-                      <button onClick={() => setViewerTab('ranking')} className={`px-4 py-2 rounded font-bold text-sm ${viewerTab==='ranking' ? 'bg-primary text-black' : 'text-gray-400'}`}>RANKING</button>
-                      <button onClick={() => setViewerTab('drops')} className={`px-4 py-2 rounded font-bold text-sm ${viewerTab==='drops' ? 'bg-primary text-black' : 'text-gray-400'}`}>DROPS</button>
+                      <button onClick={() => setViewerTab('ranking')} className={`px-4 py-2 rounded font-bold text-sm ${viewerTab==='ranking' ? 'bg-primary text-black' : 'text-gray-400'}`}>{t.viewer.ranking}</button>
+                      <button onClick={() => setViewerTab('drops')} className={`px-4 py-2 rounded font-bold text-sm ${viewerTab==='drops' ? 'bg-primary text-black' : 'text-gray-400'}`}>{t.viewer.drops}</button>
                   </div>
-                  <Button onClick={handleBack} variant="secondary">Sair</Button>
+                  <Button onClick={handleBack} variant="secondary">{t.viewer.exit}</Button>
               </div>
           </div>
           
@@ -1599,10 +1645,10 @@ function App() {
                                       </div>
                                   </div>
                                   <div className="p-4 space-y-2">
-                                      {teams.map(t => (
-                                          <div key={t.id} className="flex justify-between text-sm">
-                                              <span className="text-gray-300 font-bold">{t.name}</span>
-                                              <span className="text-primary">{mode === 'basic' ? (basicSelections[mid]?.[t.id] || '-') : 'Ver Mapa'}</span>
+                                      {teams.map(team => (
+                                          <div key={team.id} className="flex justify-between text-sm">
+                                              <span className="text-gray-300 font-bold">{team.name}</span>
+                                              <span className="text-primary">{mode === 'basic' ? (basicSelections[mid]?.[team.id] || '-') : t.mode.feats.interactive}</span>
                                           </div>
                                       ))}
                                   </div>
@@ -1617,7 +1663,7 @@ function App() {
 
   const renderMapSort = () => (
         <div className="flex flex-col items-center w-full max-w-4xl mx-auto p-4 min-h-[60vh] justify-center">
-            <h2 className="text-3xl font-display font-bold mb-12">SORTEIO DE MAPAS</h2>
+            <h2 className="text-3xl font-display font-bold mb-12">{t.sort.title}</h2>
             
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-12 w-full">
                 {(shuffledMaps.length > 0 ? shuffledMaps : [0,1,2,3,4,5].map(i => MAPS[i]?.id || i)).map((mapId, idx) => {
@@ -1643,10 +1689,10 @@ function App() {
             <div className="flex gap-6">
                 <Button variant="secondary" onClick={spinRoulette} disabled={isSpinning}>
                     <RefreshCw size={20} className={isSpinning ? 'animate-spin' : ''}/>
-                    {shuffledMaps.length > 0 ? 'SORTEAR NOVAMENTE' : 'SORTEAR MAPAS'}
+                    {shuffledMaps.length > 0 ? t.sort.respin : t.sort.spin}
                 </Button>
                 <Button onClick={startStrategy} disabled={shuffledMaps.length === 0} className="shadow-lg shadow-primary/20">
-                    DEFINIR ESTRATÉGIA <ArrowRight size={20}/>
+                    {t.sort.strategy} <ArrowRight size={20}/>
                 </Button>
             </div>
         </div>
@@ -1658,23 +1704,23 @@ function App() {
         return (
             <div className="w-full max-w-[1600px] p-2 md:p-4 flex flex-col h-[calc(100dvh-80px)] md:h-[calc(100vh-140px)]">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-2 md:mb-4 gap-2 shrink-0">
-                    <h2 className="text-xl md:text-2xl font-display font-bold">DEFINIÇÃO DE CALLS</h2>
+                    <h2 className="text-xl md:text-2xl font-display font-bold">{t.strategy.title}</h2>
                     <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 no-scrollbar">
                         <Tooltip content="Importar estratégia salva (JSON)">
-                            <Button variant="ghost" size="sm" onClick={handleImportClick} className="whitespace-nowrap"><UploadCloud size={16}/> <span className="hidden sm:inline">Importar</span></Button>
+                            <Button variant="ghost" size="sm" onClick={handleImportClick} className="whitespace-nowrap"><UploadCloud size={16}/> <span className="hidden sm:inline">{t.strategy.import}</span></Button>
                         </Tooltip>
                         <Tooltip content="Salvar estratégia em arquivo">
-                            <Button variant="ghost" size="sm" onClick={handleExportStrategy} className="whitespace-nowrap"><Download size={16}/> <span className="hidden sm:inline">JSON</span></Button>
+                            <Button variant="ghost" size="sm" onClick={handleExportStrategy} className="whitespace-nowrap"><Download size={16}/> <span className="hidden sm:inline">{t.strategy.saveJson}</span></Button>
                         </Tooltip>
                         <Tooltip content="Baixar imagem das calls">
-                            <Button variant="secondary" size="sm" onClick={downloadStrategyImage} className="whitespace-nowrap"><Image size={16}/> <span className="hidden sm:inline">Imagem</span></Button>
+                            <Button variant="secondary" size="sm" onClick={downloadStrategyImage} className="whitespace-nowrap"><Image size={16}/> <span className="hidden sm:inline">{t.strategy.saveImg}</span></Button>
                         </Tooltip>
-                        <Button onClick={() => setStep(Step.SCORING)} size="sm" className="whitespace-nowrap">PONTUAÇÃO <ArrowRight size={16}/></Button>
+                        <Button onClick={() => setStep(Step.SCORING)} size="sm" className="whitespace-nowrap">{t.strategy.scoring} <ArrowRight size={16}/></Button>
                     </div>
                 </div>
 
                 <div className="mb-2 md:mb-4 flex flex-wrap gap-2 shrink-0">
-                    {WARNINGS.map(w => (
+                    {WARNINGS[lang].map(w => (
                         <button 
                             key={w} 
                             onClick={() => toggleWarning(w)}
@@ -1689,7 +1735,7 @@ function App() {
                 <div className="md:hidden flex items-center justify-between mb-2 bg-panel p-2 rounded-lg border border-theme shadow-lg shrink-0">
                     <button onClick={() => setActiveStrategyMapIndex(Math.max(0, activeStrategyMapIndex - 1))} disabled={activeStrategyMapIndex === 0} className="p-2 rounded-lg hover:bg-white/5 disabled:opacity-30 active:scale-95 transition-all"><ChevronLeft size={24}/></button>
                     <div className="flex flex-col items-center">
-                        <span className="text-[10px] text-primary font-bold tracking-widest uppercase">Queda {activeStrategyMapIndex + 1}</span>
+                        <span className="text-[10px] text-primary font-bold tracking-widest uppercase">{t.strategy.match} {activeStrategyMapIndex + 1}</span>
                         <span className="font-bold uppercase text-lg leading-none">{MAPS.find(m => m.id === currentMaps[activeStrategyMapIndex])?.name}</span>
                     </div>
                     <button onClick={() => setActiveStrategyMapIndex(Math.min(currentMaps.length - 1, activeStrategyMapIndex + 1))} disabled={activeStrategyMapIndex === currentMaps.length - 1} className="p-2 rounded-lg hover:bg-white/5 disabled:opacity-30 active:scale-95 transition-all"><ChevronRight size={24}/></button>
@@ -1709,7 +1755,7 @@ function App() {
                                         <div className="flex items-center gap-3 mb-4 pb-2 border-b border-gray-800">
                                             <img src={mapData.image} className="w-12 h-12 rounded-lg object-cover" alt={mapData.name}/>
                                             <div>
-                                                <div className="text-xs text-muted font-bold">QUEDA {i+1}</div>
+                                                <div className="text-xs text-muted font-bold">{t.strategy.match} {i+1}</div>
                                                 <div className="font-bold text-lg">{mapData.name}</div>
                                             </div>
                                         </div>
@@ -1723,8 +1769,8 @@ function App() {
                                                         onChange={(e) => handleCitySelect(mapId, team.id, e.target.value)}
                                                         className="flex-1 bg-black/30 border border-gray-800 rounded px-2 py-1 text-xs text-white outline-none focus:border-primary"
                                                     >
-                                                        <option value="">Selecione...</option>
-                                                        <option value="LIVRE">LIVRE</option>
+                                                        <option value="">{t.strategy.select}</option>
+                                                        <option value="LIVRE">{t.strategy.free}</option>
                                                         {mapData.cities.map(c => <option key={c} value={c}>{c}</option>)}
                                                     </select>
                                                 </div>
@@ -1746,7 +1792,7 @@ function App() {
                                         className={`${isVisibleMobile ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-1/2 lg:w-1/3 md:min-w-[450px] p-0 md:p-4 h-full shrink-0 snap-center transition-all`}
                                     >
                                         <DraggableMap 
-                                            mapName={`QUEDA ${i+1}: ${mapData.name}`}
+                                            mapName={`${t.strategy.match} ${i+1}: ${mapData.name}`}
                                             image={mapData.image}
                                             teams={teams}
                                             positions={premiumPositions[mapId] || {}}
@@ -1771,7 +1817,7 @@ function App() {
 
         return (
             <div className="w-full max-w-5xl mx-auto p-4 flex flex-col items-center">
-                <h2 className="text-3xl font-display font-bold mb-8">PONTUAÇÃO</h2>
+                <h2 className="text-3xl font-display font-bold mb-8">{t.scoring.title}</h2>
 
                 {/* Match Tabs */}
                 <div className="flex gap-2 overflow-x-auto w-full pb-4 mb-4 no-scrollbar">
@@ -1784,7 +1830,7 @@ function App() {
                                 ${currentMatchTab === idx ? 'bg-primary text-black shadow-lg shadow-primary/20' : 'bg-panel border border-theme text-muted hover:text-white'}
                             `}
                         >
-                            Queda {idx + 1}
+                            {t.strategy.match} {idx + 1}
                         </button>
                     ))}
                 </div>
@@ -1797,14 +1843,14 @@ function App() {
                              </div>
                              <div>
                                  <h3 className="font-bold text-xl">{activeMapData?.name}</h3>
-                                 <div className="text-sm text-muted">Queda {currentMatchTab + 1}</div>
+                                 <div className="text-sm text-muted">{t.strategy.match} {currentMatchTab + 1}</div>
                              </div>
                          </div>
 
                          {mode === 'premium_plus' && (
                              <div className="flex gap-2">
                                  <Button variant="secondary" onClick={() => replayInputRef.current?.click()} size="sm" className="text-yellow-500 border-yellow-500/30 hover:bg-yellow-500/10">
-                                     <Binary size={16}/> Carregar Replay (.json)
+                                     <Binary size={16}/> {t.scoring.loadReplay}
                                  </Button>
                                  <input type="file" ref={replayInputRef} className="hidden" accept=".json" onChange={handleReplayUpload} />
                              </div>
@@ -1822,7 +1868,7 @@ function App() {
                                      </div>
                                      <div className="flex gap-2">
                                          <div className="flex-1">
-                                             <label className="text-[10px] text-muted uppercase font-bold">Rank #</label>
+                                             <label className="text-[10px] text-muted uppercase font-bold">{t.scoring.rank}</label>
                                              <Tooltip content="Colocação (1-12)">
                                                 <input 
                                                     type="number" 
@@ -1835,7 +1881,7 @@ function App() {
                                              </Tooltip>
                                          </div>
                                          <div className="flex-1">
-                                             <label className="text-[10px] text-muted uppercase font-bold">Kills</label>
+                                             <label className="text-[10px] text-muted uppercase font-bold">{t.scoring.kills}</label>
                                              <Tooltip content="Kills totais">
                                                 <input 
                                                     type="number" 
@@ -1854,9 +1900,9 @@ function App() {
                 </div>
 
                 <div className="flex gap-4">
-                     <Button variant="secondary" onClick={() => setStep(Step.STRATEGY)}><ArrowLeft size={18}/> Voltar</Button>
+                     <Button variant="secondary" onClick={() => setStep(Step.STRATEGY)}><ArrowLeft size={18}/> {t.common.back}</Button>
                      <Button onClick={() => setStep(Step.DASHBOARD)} size="lg" className="shadow-lg shadow-primary/20">
-                         VER RESULTADOS <ArrowRight size={18}/>
+                         {t.scoring.results} <ArrowRight size={18}/>
                      </Button>
                 </div>
             </div>
@@ -1868,7 +1914,7 @@ function App() {
       return (
           <div className="fixed inset-0 z-[70] bg-black/95 flex flex-col items-center justify-center p-4">
                <div className="mb-4 flex justify-between w-full max-w-2xl text-white items-center">
-                   <h3 className="font-bold">Pré-visualização do Banner</h3>
+                   <h3 className="font-bold">{t.report.view}</h3>
                    <button onClick={() => setShowSocialBanner(false)}><X size={24}/></button>
                </div>
                
@@ -1883,7 +1929,7 @@ function App() {
                         <div className="flex justify-between items-start mb-16">
                             <div>
                                 <h1 className="text-7xl font-black text-white uppercase tracking-tighter mb-4 drop-shadow-lg">{trainingName}</h1>
-                                <span className="bg-primary text-black font-black text-3xl px-6 py-2 rounded inline-block uppercase tracking-widest">RESULTADO FINAL</span>
+                                <span className="bg-primary text-black font-black text-3xl px-6 py-2 rounded inline-block uppercase tracking-widest">{t.dashboard.resultTitle}</span>
                             </div>
                             <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
                                 <Crown size={100} className="text-primary drop-shadow-[0_0_15px_rgba(255,212,0,0.5)]"/>
@@ -1891,8 +1937,8 @@ function App() {
                         </div>
                         
                         <div className="flex-1 flex flex-col gap-5">
-                            {leaderboard.slice(0, 10).map((t, i) => {
-                                const tObj = teams.find(team => team.id === t.teamId);
+                            {leaderboard.slice(0, 10).map((tItem, i) => {
+                                const tObj = teams.find(team => team.id === tItem.teamId);
                                 return (
                                 <div key={i} className={`flex items-center p-6 rounded-2xl border-b-2 ${i<3 ? 'bg-gradient-to-r from-white/10 to-transparent border-primary/50' : 'bg-transparent border-gray-800'}`}>
                                     <span className={`text-5xl font-black w-24 text-center ${i===0 ? 'text-[#FFD400]' : i===1 ? 'text-gray-300' : i===2 ? 'text-orange-500' : 'text-gray-600'}`}>{i+1}</span>
@@ -1904,11 +1950,11 @@ function App() {
                                                 <div className="w-6 h-6 rounded-full" style={{backgroundColor: tObj?.color}}></div>
                                             </div>
                                         )}
-                                        {t.teamName}
+                                        {tItem.teamName}
                                     </span>
                                     <div className="text-right">
-                                        <div className="text-5xl font-black text-white">{t.totalPoints}</div>
-                                        <div className="text-sm text-primary font-bold tracking-[0.2em] uppercase">PONTOS</div>
+                                        <div className="text-5xl font-black text-white">{tItem.totalPoints}</div>
+                                        <div className="text-sm text-primary font-bold tracking-[0.2em] uppercase">{t.dashboard.points}</div>
                                     </div>
                                 </div>
                             )})}
@@ -1927,7 +1973,7 @@ function App() {
                </div>
 
                <div className="mt-[400px] md:mt-[300px] flex gap-4">
-                   <Button onClick={downloadSocialBanner} className="bg-white text-black hover:bg-gray-200"><Download size={18}/> Baixar Imagem (PNG)</Button>
+                   <Button onClick={downloadSocialBanner} className="bg-white text-black hover:bg-gray-200"><Download size={18}/> {t.strategy.saveImg}</Button>
                </div>
           </div>
       )
@@ -1937,25 +1983,25 @@ function App() {
     const generateReportText = () => {
          let text = `*${trainingName.toUpperCase()}*\n\n`;
          if (selectedWarnings.length > 0) {
-             text += `⚠️ *AVISOS:*\n`;
+             text += `⚠️ *${t.report.warnings}:*\n`;
              selectedWarnings.forEach(w => text += `• ${w}\n`);
              text += `\n`;
          }
          const currentMaps = shuffledMaps.length > 0 ? shuffledMaps : MAPS.map(m => m.id);
          currentMaps.forEach((mid, idx) => {
              const mName = MAPS.find(x => x.id === mid)?.name;
-             text += `📍 *QUEDA ${idx + 1}: ${mName?.toUpperCase()}*\n`;
-             teams.forEach(t => {
-                 let call = mode === 'basic' ? (basicSelections[mid]?.[t.id] || 'LIVRE') : 'Ver Mapa';
-                 if (mode === 'basic') text += `▫️ ${t.name}: ${call}\n`;
+             text += `📍 *${t.strategy.match.toUpperCase()} ${idx + 1}: ${mName?.toUpperCase()}*\n`;
+             teams.forEach(team => {
+                 let call = mode === 'basic' ? (basicSelections[mid]?.[team.id] || t.strategy.free) : t.mode.feats.interactive;
+                 if (mode === 'basic') text += `▫️ ${team.name}: ${call}\n`;
              });
-             if (mode !== 'basic') text += `(Confira a imagem da call)\n`;
+             if (mode !== 'basic') text += `(${t.mode.feats.interactive})\n`;
              text += `\n`;
          });
-         if (leaderboard.some(t => t.totalPoints > 0)) {
-             text += `🏆 *TOP 3 ATUAL:*\n`;
-             leaderboard.slice(0, 3).forEach((t, i) => {
-                 text += `${i+1}º ${t.teamName} - ${t.totalPoints} pts\n`;
+         if (leaderboard.some(tItem => tItem.totalPoints > 0)) {
+             text += `🏆 *${t.report.top3}:*\n`;
+             leaderboard.slice(0, 3).forEach((tItem, i) => {
+                 text += `${i+1}º ${tItem.teamName} - ${tItem.totalPoints} pts\n`;
              });
          }
          return text;
@@ -1968,14 +2014,14 @@ function App() {
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(generateReportText());
-        alert("Relatório copiado!");
+        alert(t.report.copied);
     };
 
     const currentMaps = shuffledMaps.length > 0 ? shuffledMaps : MAPS.map(m => m.id);
 
     return (
         <div className="flex flex-col items-center w-full max-w-6xl mx-auto p-4 md:p-8">
-            <h2 className="text-3xl font-display font-bold mb-8">RELATÓRIO & COMPARTILHAMENTO</h2>
+            <h2 className="text-3xl font-display font-bold mb-8">{t.report.title}</h2>
             
             <div className="flex flex-col lg:flex-row gap-8 w-full h-full min-h-[500px]">
                 {/* Visual Preview */}
@@ -1983,7 +2029,7 @@ function App() {
                     <div className="bg-black/50 p-4 border-b border-theme flex justify-between items-center">
                         <div className="flex items-center gap-2">
                             <Eye size={18} className="text-primary"/>
-                            <span className="font-bold text-sm uppercase tracking-wider">Visualização</span>
+                            <span className="font-bold text-sm uppercase tracking-wider">{t.report.view}</span>
                         </div>
                     </div>
                     <div className="p-6 overflow-y-auto max-h-[600px] custom-scrollbar space-y-4">
@@ -1992,17 +2038,17 @@ function App() {
                             return (
                                 <div key={idx} className="bg-black/30 border border-gray-800 rounded-lg p-4">
                                     <div className="flex items-center gap-2 mb-3">
-                                        <span className="bg-primary text-black text-xs font-bold px-2 py-1 rounded">QUEDA {idx+1}</span>
+                                        <span className="bg-primary text-black text-xs font-bold px-2 py-1 rounded">{t.strategy.match} {idx+1}</span>
                                         <span className="font-bold text-white uppercase">{mName}</span>
                                     </div>
                                     <div className="space-y-1">
-                                        {teams.map(t => {
-                                            const call = mode === 'basic' ? (basicSelections[mid]?.[t.id] || 'Livre') : 'Ver Mapa';
+                                        {teams.map(team => {
+                                            const call = mode === 'basic' ? (basicSelections[mid]?.[team.id] || t.strategy.free) : t.mode.feats.interactive;
                                             return (
-                                                <div key={t.id} className="flex items-center justify-between text-sm text-gray-400 border-b border-gray-800/30 pb-1 last:border-0">
+                                                <div key={team.id} className="flex items-center justify-between text-sm text-gray-400 border-b border-gray-800/30 pb-1 last:border-0">
                                                     <div className="flex items-center gap-2">
-                                                        {t.logo && <img src={t.logo} className="w-4 h-4 rounded-full"/>}
-                                                        <span className="text-gray-300 font-medium">{t.name}</span>
+                                                        {team.logo && <img src={team.logo} className="w-4 h-4 rounded-full"/>}
+                                                        <span className="text-gray-300 font-medium">{team.name}</span>
                                                     </div>
                                                     <span className="font-mono text-primary text-xs">{call}</span>
                                                 </div>
@@ -2019,8 +2065,8 @@ function App() {
                 <div className="lg:w-1/3 flex flex-col gap-4">
                     <div className="bg-panel border border-theme rounded-xl p-4 flex-1 flex flex-col shadow-xl">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold text-muted uppercase text-xs tracking-wider flex items-center gap-2"><FileText size={14}/> Texto Formatado</h3>
-                            <Tooltip content="Copiar texto cru">
+                            <h3 className="font-bold text-muted uppercase text-xs tracking-wider flex items-center gap-2"><FileText size={14}/> {t.report.raw}</h3>
+                            <Tooltip content={t.report.copy}>
                                 <button onClick={copyToClipboard} className="text-muted hover:text-white"><Copy size={16}/></button>
                             </Tooltip>
                         </div>
@@ -2033,11 +2079,11 @@ function App() {
                     
                     <div className="grid grid-cols-1 gap-3">
                         <Button onClick={copyToClipboard} variant="secondary" className="w-full justify-between group">
-                            <span className="flex items-center gap-2"><Copy size={18}/> Copiar Relatório</span>
+                            <span className="flex items-center gap-2"><Copy size={18}/> {t.report.copy}</span>
                             <span className="text-xs bg-gray-800 px-2 py-1 rounded text-gray-400 group-hover:text-white">Ctrl+C</span>
                         </Button>
                         <Button onClick={handleWhatsAppShare} className="w-full bg-green-600 hover:bg-green-500 text-white border-none shadow-lg shadow-green-900/20 justify-between">
-                            <span className="flex items-center gap-2"><MessageCircle size={18} fill="currentColor"/> Enviar no WhatsApp</span>
+                            <span className="flex items-center gap-2"><MessageCircle size={18} fill="currentColor"/> {t.report.whatsapp}</span>
                             <ArrowRight size={16}/>
                         </Button>
                     </div>
@@ -2049,7 +2095,7 @@ function App() {
 
   const renderDashboard = () => (
     <div className="flex flex-col items-center w-full max-w-6xl mx-auto p-4 md:p-8">
-        <h2 className="text-3xl font-display font-bold mb-8">RESULTADOS & ESTATÍSTICAS</h2>
+        <h2 className="text-3xl font-display font-bold mb-8">{t.dashboard.title}</h2>
 
         <div className="flex flex-wrap gap-4 mb-8 justify-center">
             <div className="bg-panel border border-theme rounded-lg p-1 flex">
@@ -2057,23 +2103,23 @@ function App() {
                     onClick={() => setDashboardTab('leaderboard')}
                     className={`px-4 py-2 rounded font-bold text-sm transition-all ${dashboardTab === 'leaderboard' ? 'bg-primary text-black shadow' : 'text-muted hover:text-white'}`}
                 >
-                    CLASSIFICAÇÃO
+                    {t.dashboard.tabRank}
                 </button>
                 <button 
                     onClick={() => setDashboardTab('mvp')}
                     className={`px-4 py-2 rounded font-bold text-sm transition-all ${dashboardTab === 'mvp' ? 'bg-primary text-black shadow' : 'text-muted hover:text-white'}`}
                 >
-                    MVP & STATS
+                    {t.dashboard.tabMvp}
                 </button>
             </div>
-            <Tooltip content="Gerar imagem para Instagram">
+            <Tooltip content={t.dashboard.social}>
                 <Button variant="secondary" onClick={() => setShowSocialBanner(true)} className="text-pink-500 border-pink-500/30 hover:bg-pink-500/10">
-                    <Instagram size={18}/> Banner Social
+                    <Instagram size={18}/> {t.dashboard.social}
                 </Button>
             </Tooltip>
-            <Tooltip content="Salvar no histórico local">
+            <Tooltip content={t.dashboard.saveHub}>
                 <Button variant="secondary" onClick={saveToHub} className="text-blue-400 border-blue-400/30 hover:bg-blue-400/10">
-                    <Globe size={18}/> Publicar no Hub
+                    <Globe size={18}/> {t.dashboard.saveHub}
                 </Button>
             </Tooltip>
         </div>
@@ -2085,12 +2131,12 @@ function App() {
                         <thead>
                             <tr className="bg-black/40 text-xs text-muted uppercase font-bold border-b border-gray-800">
                                 <th className="p-4 w-16 text-center">#</th>
-                                <th className="p-4">Time</th>
-                                <th className="p-4 text-center">Pts Totais</th>
-                                <th className="p-4 text-center hidden md:table-cell">Posição (Pts)</th>
-                                <th className="p-4 text-center hidden md:table-cell">Kills (Pts)</th>
-                                <th className="p-4 text-center hidden sm:table-cell">Booyahs</th>
-                                <th className="p-4 text-center hidden lg:table-cell">Última Queda</th>
+                                <th className="p-4">{t.dashboard.table.team}</th>
+                                <th className="p-4 text-center">{t.dashboard.table.total}</th>
+                                <th className="p-4 text-center hidden md:table-cell">{t.dashboard.table.pos}</th>
+                                <th className="p-4 text-center hidden md:table-cell">{t.dashboard.table.killPts}</th>
+                                <th className="p-4 text-center hidden sm:table-cell">{t.dashboard.table.booyah}</th>
+                                <th className="p-4 text-center hidden lg:table-cell">{t.dashboard.table.last}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2104,10 +2150,10 @@ function App() {
                                     </td>
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
-                                            {teams.find(t => t.id === row.teamId)?.logo ? (
-                                                <img src={teams.find(t => t.id === row.teamId)?.logo} className="w-8 h-8 rounded-full object-cover border border-gray-600" />
+                                            {teams.find(team => team.id === row.teamId)?.logo ? (
+                                                <img src={teams.find(team => team.id === row.teamId)?.logo} className="w-8 h-8 rounded-full object-cover border border-gray-600" />
                                             ) : (
-                                                <div className="w-8 h-8 rounded bg-gray-800 flex items-center justify-center font-bold text-xs border border-gray-700" style={{ color: teams.find(t => t.id === row.teamId)?.color }}>
+                                                <div className="w-8 h-8 rounded bg-gray-800 flex items-center justify-center font-bold text-xs border border-gray-700" style={{ color: teams.find(team => team.id === row.teamId)?.color }}>
                                                     {row.teamName.substring(0, 2).toUpperCase()}
                                                 </div>
                                             )}
@@ -2121,7 +2167,7 @@ function App() {
                                         {row.placementPoints}
                                     </td>
                                     <td className="p-4 text-center hidden md:table-cell text-gray-400">
-                                        {row.killPoints} <span className="text-xs text-gray-600">({row.totalKills} Kills)</span>
+                                        {row.killPoints} <span className="text-xs text-gray-600">({row.totalKills} {t.scoring.kills})</span>
                                     </td>
                                     <td className="p-4 text-center hidden sm:table-cell">
                                         {row.booyahs > 0 ? <span className="bg-yellow-500/20 text-yellow-500 px-2 py-1 rounded text-xs font-bold">{row.booyahs}</span> : <span className="text-gray-600">-</span>}
@@ -2140,12 +2186,12 @@ function App() {
                         <thead>
                             <tr className="bg-black/40 text-xs text-muted uppercase font-bold border-b border-gray-800">
                                 <th className="p-4 text-center">Rank</th>
-                                <th className="p-4">Jogador</th>
-                                <th className="p-4">Time</th>
-                                <th className="p-4 text-center">MVP Score</th>
-                                <th className="p-4 text-center">Kills</th>
-                                <th className="p-4 text-center hidden md:table-cell">Dano</th>
-                                <th className="p-4 text-center hidden md:table-cell">Tempo Vivo</th>
+                                <th className="p-4">{t.dashboard.table.player}</th>
+                                <th className="p-4">{t.dashboard.table.team}</th>
+                                <th className="p-4 text-center">{t.dashboard.table.mvpScore}</th>
+                                <th className="p-4 text-center">{t.scoring.kills}</th>
+                                <th className="p-4 text-center hidden md:table-cell">{t.dashboard.table.damage}</th>
+                                <th className="p-4 text-center hidden md:table-cell">{t.dashboard.table.time}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2164,7 +2210,7 @@ function App() {
                             ))}
                             {playerStats.length === 0 && (
                                 <tr>
-                                    <td colSpan={7} className="p-8 text-center text-muted">Nenhum dado de jogador registrado ainda. Use o modo Premium Plus ou insira kills manualmente.</td>
+                                    <td colSpan={7} className="p-8 text-center text-muted">{t.dashboard.emptyPlayer}</td>
                                 </tr>
                             )}
                         </tbody>
@@ -2174,15 +2220,15 @@ function App() {
         </div>
 
         <div className="flex flex-col md:flex-row gap-4 justify-between w-full">
-             <Button variant="secondary" onClick={() => setStep(Step.SCORING)}><ArrowLeft size={18}/> Corrigir Pontos</Button>
+             <Button variant="secondary" onClick={() => setStep(Step.SCORING)}><ArrowLeft size={18}/> {t.common.back}</Button>
              <div className="flex gap-4">
                  <Tooltip content="Modo tela cheia para transmissão">
                     <Button onClick={() => setStep(Step.VIEWER)} className="bg-purple-600 hover:bg-purple-500 text-white border-none shadow-lg shadow-purple-900/20">
-                        <Monitor size={18}/> MODO LEITURA
+                        <Monitor size={18}/> {t.viewer.ranking}
                     </Button>
                  </Tooltip>
                  <Button onClick={() => setStep(Step.REPORT)} className="shadow-lg shadow-primary/20">
-                     GERAR RELATÓRIO <ArrowRight size={18}/>
+                     {t.features.share} <ArrowRight size={18}/>
                  </Button>
              </div>
         </div>
@@ -2194,41 +2240,56 @@ function App() {
       <ErrorBoundary>
         <div className="fixed top-4 right-4 z-50 no-print flex gap-2 bg-panel/80 backdrop-blur-md p-2 rounded-xl border border-theme shadow-lg items-center">
             {step !== Step.HOME && step !== Step.VIEWER && 
-                <Tooltip content="Voltar" position="bottom">
+                <Tooltip content={t.common.back} position="bottom">
                     <Button variant="ghost" size="sm" onClick={handleBack} className="!p-2"><ArrowLeft size={18} /></Button>
                 </Tooltip>
             }
             {step !== Step.HOME && step !== Step.VIEWER && 
-                <Tooltip content="Ir para Início" position="bottom">
+                <Tooltip content={t.common.home} position="bottom">
                     <Button variant="ghost" size="sm" onClick={handleHome} className="!p-2"><Home size={18} /></Button>
                 </Tooltip>
             }
             {step !== Step.HOME && step !== Step.VIEWER && 
-                <Tooltip content="Salvar Rascunho" position="bottom">
+                <Tooltip content={t.common.draft} position="bottom">
                     <Button variant="ghost" size="sm" onClick={saveDraft} className="!p-2 text-yellow-500"><Save size={18} /></Button>
                 </Tooltip>
             }
             
-            <Tooltip content="Ajuda" position="bottom">
+            <Tooltip content={t.common.help} position="bottom">
                 <button onClick={() => setShowHelp(true)} className="p-2 rounded-lg hover:bg-background text-muted hover:text-main transition-colors">
                     <HelpCircle size={18} />
                 </button>
             </Tooltip>
 
-            <Tooltip content={isDarkMode ? "Modo Claro" : "Modo Escuro"} position="bottom">
+            {/* LANGUAGE SELECTOR */}
+            <div className="group relative">
+                <Tooltip content={t.common.language} position="bottom">
+                    <button className="p-2 rounded-lg hover:bg-background text-muted hover:text-main transition-colors">
+                        <Languages size={18}/>
+                    </button>
+                </Tooltip>
+                <div className="absolute right-0 top-full mt-2 bg-panel border border-theme rounded-lg p-2 hidden group-hover:flex flex-col gap-2 shadow-xl min-w-[120px]">
+                    <span className="text-xs text-muted font-bold px-2 uppercase">{t.common.language}</span>
+                    <button onClick={() => setLang('pt')} className={`px-2 py-1.5 rounded hover:bg-background text-sm flex items-center gap-2 ${lang === 'pt' ? 'text-primary font-bold' : 'text-muted'}`}>🇧🇷 Português</button>
+                    <button onClick={() => setLang('en')} className={`px-2 py-1.5 rounded hover:bg-background text-sm flex items-center gap-2 ${lang === 'en' ? 'text-primary font-bold' : 'text-muted'}`}>🇺🇸 English</button>
+                    <button onClick={() => setLang('es')} className={`px-2 py-1.5 rounded hover:bg-background text-sm flex items-center gap-2 ${lang === 'es' ? 'text-primary font-bold' : 'text-muted'}`}>🇪🇸 Español</button>
+                </div>
+            </div>
+
+            <Tooltip content={isDarkMode ? t.common.light : t.common.dark} position="bottom">
                 <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-lg hover:bg-background text-muted hover:text-main transition-colors">
                     {isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
                 </button>
             </Tooltip>
 
             <div className="group relative">
-             <Tooltip content="Alterar Tema" position="bottom">
+             <Tooltip content={t.common.theme} position="bottom">
                 <button className="p-2 rounded-lg hover:bg-background text-muted hover:text-main transition-colors">
                 <Palette size={18}/>
                 </button>
              </Tooltip>
              <div className="absolute right-0 top-full mt-2 bg-panel border border-theme rounded-lg p-2 hidden group-hover:flex flex-col gap-2 shadow-xl min-w-[120px]">
-                <span className="text-xs text-muted font-bold px-2 uppercase">Cor Destaque</span>
+                <span className="text-xs text-muted font-bold px-2 uppercase">{t.common.theme}</span>
                 {THEMES.map(theme => (
                   <button 
                     key={theme.name} 

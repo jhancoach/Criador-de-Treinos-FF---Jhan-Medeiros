@@ -1,5 +1,6 @@
 
 export type TrainingMode = 'basic' | 'premium' | 'premium_plus';
+export type Language = 'pt' | 'en' | 'es';
 
 export interface Team {
   id: string;
