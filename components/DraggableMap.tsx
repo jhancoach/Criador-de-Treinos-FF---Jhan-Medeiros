@@ -25,6 +25,7 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const lastMousePos = useRef<{ x: number, y: number } | null>(null);
 
   // Center map on mount
   useEffect(() => {
@@ -45,9 +46,21 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
     setDraggingId(teamId);
   };
 
-  const handlePanStart = (e: React.MouseEvent) => {
-      if (readOnly) return;
+  const handlePanStart = (e: React.MouseEvent | React.TouchEvent) => {
+      // Allow panning in readOnly mode too
+      if (draggingId) return; // Don't pan if dragging a team
+      
       setIsPanning(true);
+      
+      let clientX, clientY;
+      if ('touches' in e) {
+          clientX = e.touches[0].clientX;
+          clientY = e.touches[0].clientY;
+      } else {
+          clientX = (e as React.MouseEvent).clientX;
+          clientY = (e as React.MouseEvent).clientY;
+      }
+      lastMousePos.current = { x: clientX, y: clientY };
   };
 
   const snapToGrid = (val: number) => {
@@ -57,7 +70,7 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
 
   const handleMove = (e: MouseEvent | TouchEvent) => {
     // Handle Icon Dragging
-    if (draggingId && containerRef.current) {
+    if (draggingId && containerRef.current && !readOnly) {
         const container = containerRef.current.getBoundingClientRect();
         let clientX, clientY;
 
@@ -80,16 +93,35 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
     }
 
     // Handle Panning
-    if (isPanning && scrollContainerRef.current && 'movementX' in e) {
-        const me = e as MouseEvent;
-        scrollContainerRef.current.scrollLeft -= me.movementX;
-        scrollContainerRef.current.scrollTop -= me.movementY;
+    if (isPanning && scrollContainerRef.current) {
+        // Prevent default only if panning to avoid scrolling the whole page on touch
+        if (e.cancelable && 'touches' in e) e.preventDefault(); 
+
+        let clientX, clientY;
+        if ('touches' in e) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = (e as MouseEvent).clientX;
+            clientY = (e as MouseEvent).clientY;
+        }
+
+        if (lastMousePos.current) {
+            const deltaX = clientX - lastMousePos.current.x;
+            const deltaY = clientY - lastMousePos.current.y;
+            
+            scrollContainerRef.current.scrollLeft -= deltaX;
+            scrollContainerRef.current.scrollTop -= deltaY;
+        }
+        
+        lastMousePos.current = { x: clientX, y: clientY };
     }
   };
 
   const handleEnd = () => {
     setDraggingId(null);
     setIsPanning(false);
+    lastMousePos.current = null;
   };
 
   useEffect(() => {
@@ -105,31 +137,30 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
       window.removeEventListener('touchmove', handleMove);
       window.removeEventListener('touchend', handleEnd);
     };
-  }, [draggingId, isPanning]);
+  }, [draggingId, isPanning, readOnly]);
 
   return (
-    <div className="bg-panel rounded-xl p-4 shadow-theme border border-theme flex flex-col h-full relative group/map">
-      <div className="flex justify-between items-center mb-4 z-10">
-         <h3 className="text-primary font-display font-bold text-xl uppercase tracking-widest">{mapName}</h3>
+    <div className="bg-panel rounded-xl p-4 shadow-theme border border-theme flex flex-col h-full relative group/map overflow-hidden">
+      <div className="flex justify-between items-center mb-4 z-10 pointer-events-none">
+         <h3 className="text-primary font-display font-bold text-xl uppercase tracking-widest pointer-events-auto">{mapName}</h3>
       </div>
       
-      {/* Controls Overlay */}
-      {!readOnly && (
-          <div className="absolute top-16 right-6 z-20 flex flex-col gap-2 bg-black/80 backdrop-blur rounded-lg border border-gray-700 p-2 shadow-xl opacity-0 group-hover/map:opacity-100 transition-opacity">
-              <Tooltip content="Zoom In" position="left">
-                  <button onClick={() => handleZoom(0.5)} className="p-2 hover:bg-gray-700 rounded text-white disabled:opacity-30" disabled={zoomLevel >= 3}><ZoomIn size={20}/></button>
-              </Tooltip>
-              <div className="text-center text-[10px] font-mono font-bold text-gray-400">{Math.round(zoomLevel * 100)}%</div>
-              <Tooltip content="Zoom Out" position="left">
-                  <button onClick={() => handleZoom(-0.5)} className="p-2 hover:bg-gray-700 rounded text-white disabled:opacity-30" disabled={zoomLevel <= 1}><ZoomOut size={20}/></button>
-              </Tooltip>
-          </div>
-      )}
+      {/* Controls Overlay - Visible on hover or always on touch if needed, now active in readOnly too */}
+      <div className="absolute top-16 right-6 z-20 flex flex-col gap-2 bg-black/80 backdrop-blur rounded-lg border border-gray-700 p-2 shadow-xl opacity-0 group-hover/map:opacity-100 transition-opacity duration-300 pointer-events-auto">
+          <Tooltip content="Zoom In" position="left">
+              <button onClick={() => handleZoom(0.5)} className="p-2 hover:bg-gray-700 rounded text-white disabled:opacity-30" disabled={zoomLevel >= 3}><ZoomIn size={20}/></button>
+          </Tooltip>
+          <div className="text-center text-[10px] font-mono font-bold text-gray-400">{Math.round(zoomLevel * 100)}%</div>
+          <Tooltip content="Zoom Out" position="left">
+              <button onClick={() => handleZoom(-0.5)} className="p-2 hover:bg-gray-700 rounded text-white disabled:opacity-30" disabled={zoomLevel <= 1}><ZoomOut size={20}/></button>
+          </Tooltip>
+      </div>
 
       <div 
         ref={scrollContainerRef}
-        className={`flex-1 overflow-auto border border-gray-700 rounded-lg bg-gray-900 relative min-h-[300px] ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+        className={`flex-1 overflow-auto border border-gray-700 rounded-lg bg-gray-900 relative min-h-[300px] no-scrollbar ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
         onMouseDown={handlePanStart}
+        onTouchStart={handlePanStart}
       >
         <div 
             ref={containerRef}
@@ -207,7 +238,9 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
             })}
         </div>
       </div>
-      {!readOnly && <p className="text-muted text-xs text-center mt-2 flex items-center justify-center gap-2 opacity-60"><Move size={12}/> Arraste o mapa para mover • Arraste os times para posicionar</p>}
+      <p className="text-muted text-xs text-center mt-2 flex items-center justify-center gap-2 opacity-60">
+          <Move size={12}/> Arraste o mapa para mover { !readOnly && '• Arraste os times para posicionar' }
+      </p>
     </div>
   );
 };
