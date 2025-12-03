@@ -105,3 +105,19 @@ export const POINTS_SYSTEM: Record<number, number> = {
   10: 1
 };
 // 11-15 is 0
+
+export interface ReplayEvent {
+  Event: number;
+  Time: number;
+  SParam?: string;
+  FParam?: number;
+}
+
+export interface PlayerAnalysis {
+    name: string;
+    teamTag: string;
+    kills: number;
+    damage: number;
+    firstEventTime: number;
+    lastEventTime: number;
+}

@@ -40,6 +40,16 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
     setZoomLevel(prev => Math.max(1, Math.min(3, prev + delta)));
   };
 
+  // Mouse Wheel Zoom Handler
+  const handleWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+    }
+    // Zoom in if scrolling up, out if scrolling down
+    const delta = e.deltaY < 0 ? 0.2 : -0.2;
+    handleZoom(delta);
+  };
+
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent, teamId: string) => {
     if (readOnly) return;
     e.stopPropagation();
@@ -47,8 +57,7 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
   };
 
   const handlePanStart = (e: React.MouseEvent | React.TouchEvent) => {
-      // Allow panning in readOnly mode too
-      if (draggingId) return; // Don't pan if dragging a team
+      if (draggingId) return; 
       
       setIsPanning(true);
       
@@ -64,12 +73,11 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
   };
 
   const snapToGrid = (val: number) => {
-      const gridSize = 1; // Snap to nearest 1%
+      const gridSize = 1; 
       return Math.round(val / gridSize) * gridSize;
   };
 
   const handleMove = (e: MouseEvent | TouchEvent) => {
-    // Handle Icon Dragging
     if (draggingId && containerRef.current && !readOnly) {
         const container = containerRef.current.getBoundingClientRect();
         let clientX, clientY;
@@ -85,16 +93,13 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
         let x = ((clientX - container.left) / container.width) * 100;
         let y = ((clientY - container.top) / container.height) * 100;
 
-        // Apply Snapping
         x = snapToGrid(Math.max(0, Math.min(100, x)));
         y = snapToGrid(Math.max(0, Math.min(100, y)));
 
         onPositionChange(draggingId, { x, y });
     }
 
-    // Handle Panning
     if (isPanning && scrollContainerRef.current) {
-        // Prevent default only if panning to avoid scrolling the whole page on touch
         if (e.cancelable && 'touches' in e) e.preventDefault(); 
 
         let clientX, clientY;
@@ -145,7 +150,6 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
          <h3 className="text-primary font-display font-bold text-xl uppercase tracking-widest pointer-events-auto">{mapName}</h3>
       </div>
       
-      {/* Controls Overlay - Visible on hover or always on touch if needed, now active in readOnly too */}
       <div className="absolute top-16 right-6 z-20 flex flex-col gap-2 bg-black/80 backdrop-blur rounded-lg border border-gray-700 p-2 shadow-xl opacity-0 group-hover/map:opacity-100 transition-opacity duration-300 pointer-events-auto">
           <Tooltip content="Zoom In" position="left">
               <button onClick={() => handleZoom(0.5)} className="p-2 hover:bg-gray-700 rounded text-white disabled:opacity-30" disabled={zoomLevel >= 3}><ZoomIn size={20}/></button>
@@ -161,6 +165,7 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
         className={`flex-1 overflow-auto border border-gray-700 rounded-lg bg-gray-900 relative min-h-[300px] no-scrollbar ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
         onMouseDown={handlePanStart}
         onTouchStart={handlePanStart}
+        onWheel={handleWheel}
       >
         <div 
             ref={containerRef}
@@ -175,7 +180,6 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
               aspectRatio: '1 / 1'
             }}
         >
-            {/* Teams List */}
             {teams.map((team) => {
             const pos = positions[team.id] || { x: 50, y: 50 };
             const isDragging = draggingId === team.id;
@@ -194,7 +198,6 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
                 }}
                 >
                 {team.logo ? (
-                    // Logo Render
                     <div className="relative flex flex-col items-center">
                         <div 
                             className="w-10 h-10 md:w-14 md:h-14 rounded-full border-2 md:border-4 shadow-lg overflow-hidden bg-black relative transition-shadow hover:shadow-[0_0_20px_rgba(255,255,255,0.5)]"
@@ -209,11 +212,9 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
                         >
                             {team.name}
                         </span>
-                        {/* Pin indicator line */}
                         <div className="w-0.5 h-4 bg-white/50 absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full pointer-events-none"></div>
                     </div>
                 ) : (
-                    // Default Pill Render
                     <div className="relative">
                         <div 
                             className={`
@@ -239,7 +240,7 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
         </div>
       </div>
       <p className="text-muted text-xs text-center mt-2 flex items-center justify-center gap-2 opacity-60">
-          <Move size={12}/> Arraste o mapa para mover { !readOnly && '• Arraste os times para posicionar' }
+          <Move size={12}/> {readOnly ? 'Use Scroll/Arraste para navegar' : 'Use Scroll para Zoom • Arraste o mapa ou times'}
       </p>
     </div>
   );
