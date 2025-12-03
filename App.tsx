@@ -1136,6 +1136,17 @@ function App() {
         <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-purple-900/20 blur-[150px] rounded-full pointer-events-none"></div>
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
         
+        {/* Language Selector */}
+        <div className="absolute top-6 right-6 z-20">
+            <button 
+                onClick={() => setLang(lang === 'pt' ? 'en' : lang === 'en' ? 'es' : 'pt')} 
+                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full backdrop-blur-md transition-all text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white hover:border-white/30"
+            >
+                <Languages size={14} />
+                <span>{lang === 'pt' ? 'PT-BR' : lang === 'en' ? 'EN-US' : 'ES-ES'}</span>
+            </button>
+        </div>
+
         <div className="max-w-[1400px] w-full mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10">
             {/* Left Column - Hero Text */}
             <div className="space-y-8 animate-in slide-in-from-left duration-700">
@@ -1573,15 +1584,15 @@ function App() {
   );
 
   const renderStrategy = () => (
-      <div className="w-full h-[calc(100vh-140px)] flex flex-col gap-4 animate-fade-in relative">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-panel p-4 rounded-xl border border-theme">
-              <div className="flex items-center gap-4 overflow-x-auto w-full md:w-auto no-scrollbar">
+      <div className="w-full flex flex-col gap-4 animate-fade-in relative md:h-[calc(100vh-140px)]">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-panel p-4 rounded-xl border border-theme shrink-0">
+              <div className="flex items-center gap-4 overflow-x-auto w-full md:w-auto no-scrollbar pb-2 md:pb-0">
                   {shuffledMaps.map((mapId, idx) => (
                       <button 
                         key={idx}
                         onClick={() => setActiveStrategyMapIndex(idx)}
                         className={`
-                            px-4 py-2 rounded-lg text-sm font-bold uppercase whitespace-nowrap transition-all border
+                            px-4 py-2 rounded-lg text-sm font-bold uppercase whitespace-nowrap transition-all border flex-shrink-0
                             ${activeStrategyMapIndex === idx ? 'bg-primary text-black border-primary' : 'bg-background text-gray-500 border-transparent hover:text-white'}
                         `}
                       >
@@ -1589,7 +1600,7 @@ function App() {
                       </button>
                   ))}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-full md:w-auto justify-end">
                   <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json"/>
                   <Tooltip content={t.strategy.import}>
                       <Button variant="secondary" size="sm" onClick={handleImportClick}><Upload size={16}/></Button>
@@ -1607,16 +1618,16 @@ function App() {
           </div>
 
           {/* Main Content Area */}
-          <div className="flex-1 overflow-hidden relative bg-black/20 rounded-xl border border-theme/50" ref={strategyRef}>
+          <div className="flex-1 relative bg-black/20 rounded-xl border border-theme/50 md:overflow-hidden" ref={strategyRef}>
                 {shuffledMaps.map((mapId, idx) => {
                     if (idx !== activeStrategyMapIndex) return null;
                     const mapData = MAPS.find(m => m.id === mapId);
                     if (!mapData) return null;
 
                     return (
-                        <div key={mapId} className="w-full h-full flex flex-col md:flex-row gap-4 p-4 animate-in fade-in">
+                        <div key={mapId} className="w-full h-auto md:h-full flex flex-col md:flex-row gap-4 p-4 animate-in fade-in">
                             {/* Map Visualization */}
-                            <div className="flex-1 h-full min-h-[400px]">
+                            <div className="w-full h-[500px] md:h-full md:flex-1 relative">
                                 {mode === 'premium' || mode === 'premium_plus' ? (
                                     <DraggableMap
                                         mapName={mapData.name}
@@ -1626,7 +1637,7 @@ function App() {
                                         onPositionChange={(tid, pos) => handlePremiumPosition(mapId, tid, pos)}
                                     />
                                 ) : (
-                                    <div className="w-full h-full rounded-xl overflow-hidden relative border border-theme">
+                                    <div className="w-full h-full rounded-xl overflow-hidden relative border border-theme bg-gray-900">
                                         <img src={mapData.image} className="w-full h-full object-cover opacity-50"/>
                                         <div className="absolute inset-0 flex items-center justify-center">
                                             <p className="text-gray-400 text-sm bg-black/80 px-4 py-2 rounded border border-gray-700">{t.common.interactiveMap} Only in Premium</p>
@@ -1636,7 +1647,7 @@ function App() {
                             </div>
 
                             {/* Sidebar Controls */}
-                            <div className="w-full md:w-80 flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
+                            <div className="w-full md:w-80 flex flex-col gap-4 md:overflow-y-auto pr-2 custom-scrollbar pb-8 md:pb-0">
                                 {/* Warnings Selection */}
                                 <div className="bg-panel rounded-xl p-4 border border-theme">
                                     <h4 className="font-bold text-white mb-3 text-sm uppercase tracking-wide flex items-center gap-2"><AlertTriangle size={14}/> {t.report.warnings}</h4>
@@ -1647,7 +1658,7 @@ function App() {
                                                     type="checkbox" 
                                                     checked={selectedWarnings.includes(w)}
                                                     onChange={() => toggleWarning(w)}
-                                                    className="mt-0.5 accent-primary"
+                                                    className="mt-0.5 accent-primary shrink-0"
                                                 />
                                                 <span className={selectedWarnings.includes(w) ? 'text-white font-bold' : ''}>{w}</span>
                                             </label>
