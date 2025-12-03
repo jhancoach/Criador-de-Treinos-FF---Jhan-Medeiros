@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, ErrorInfo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, ErrorInfo, useRef, Component, ReactNode } from 'react';
 import { Users, Trophy, Crown, AlertTriangle, ArrowRight, ArrowLeft, Home, Download, RefreshCw, BarChart2, Save, Trash2, Edit2, Play, LayoutGrid, HelpCircle, X, Info, FileText, Instagram, Eye, Check, Palette, Monitor, Moon, Sun, Medal, Target, Flame, Share2, Calendar, Upload, ChevronLeft, ChevronRight, Maximize, Printer, UserPlus, ChevronDown, ChevronUp, Zap, UploadCloud, Binary, Image, Globe, Search, Layers, Copy, MessageCircle, ListPlus, Lock, Unlock, UserCheck, ClipboardList, Map as MapIcon, ShieldCheck, Share, Smartphone, MousePointer2 } from 'lucide-react';
 import { Team, TrainingMode, Step, MapData, MatchScore, ProcessedScore, Position, POINTS_SYSTEM, PlayerStats, SavedTrainingSession, OpenTraining, TrainingRequest } from './types';
 import { MAPS, WARNINGS } from './constants';
@@ -50,7 +50,7 @@ interface PlayerAnalysis {
 
 // Error Boundary Component
 interface ErrorBoundaryProps {
-  children?: React.ReactNode;
+  children?: ReactNode;
 }
 
 interface ErrorBoundaryState {
@@ -58,7 +58,7 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = {
     hasError: false,
     error: null
@@ -1190,8 +1190,17 @@ function App() {
         </div>
         
         {/* Footer Credit */}
-        <div className="absolute bottom-4 text-xs text-gray-600 font-mono">
-            &copy; {new Date().getFullYear()} JhanTraining System
+        <div className="absolute bottom-6 flex flex-col items-center gap-2 z-20">
+            <a 
+                href="https://www.instagram.com/jhanmedeiros/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-primary transition-all duration-300 font-mono uppercase tracking-widest group bg-black/50 px-4 py-2 rounded-full border border-white/5 hover:border-primary/30 backdrop-blur-sm"
+            >
+                <span>Desenvolvido por Jhan Medeiros</span>
+                <Instagram size={14} className="group-hover:text-pink-500 transition-colors"/>
+            </a>
+            <span className="text-[10px] text-gray-700">&copy; {new Date().getFullYear()} JhanTraining System</span>
         </div>
     </div>
   );
