@@ -120,4 +120,6 @@ export interface PlayerAnalysis {
     damage: number;
     firstEventTime: number;
     lastEventTime: number;
+    mvpScore: number;
+    timeAlive: number;
 }
