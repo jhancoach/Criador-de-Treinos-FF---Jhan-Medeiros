@@ -1,3 +1,4 @@
+
 import { MapData, Language } from './types';
 
 export const MAPS: MapData[] = [
@@ -89,3 +90,28 @@ export const WARNINGS: Record<Language, string[]> = {
     "EVITEN RUSH INNECESARIO"
   ]
 };
+
+export const CHARACTERS = [
+  { id: 'a124', name: 'A124', image: 'https://i.ibb.co/fzTd41Lx/A124.png' },
+  { id: 'orion', name: 'ORION', image: 'https://i.ibb.co/7xr1ys7f/ORION.png' },
+  { id: 'skyler', name: 'SKYLER', image: 'https://i.ibb.co/0RhD9WNz/SKYLER.png' },
+  { id: 'steffie', name: 'STEFFIE', image: 'https://i.ibb.co/1GJv2jqG/STEFFIE.png' },
+  { id: 'iris', name: 'IRIS', image: 'https://i.ibb.co/x8Fhfsty/IRIS.png' },
+  { id: 'cr7', name: 'CR7', image: 'https://i.ibb.co/TqHmqFrH/CR7.png' },
+  { id: 'tatsuya', name: 'TATSUYA', image: 'https://i.ibb.co/rK6NSGgF/TATSUYA.png' },
+  { id: 'homero', name: 'HOMERO', image: 'https://i.ibb.co/qLD3MckR/HOMERO.png' },
+  { id: 'dimitri', name: 'DIMITRI', image: 'https://i.ibb.co/YB8WTZpL/DIMITRI.png' },
+  { id: 'evelyn', name: 'EVELYN', image: 'https://i.ibb.co/N6HnVHmh/EVELYN.png' },
+  { id: 'kamir', name: 'KAMIR', image: 'https://i.ibb.co/605w44By/KAMIR.png' },
+  { id: 'santino', name: 'SANTINO', image: 'https://i.ibb.co/sd1Kz8Gj/SANTINO.png' },
+  { id: 'koda', name: 'KODA', image: 'https://i.ibb.co/849xyhhR/KODA.png' },
+  { id: 'ryden', name: 'RYDEN', image: 'https://i.ibb.co/1YWRw9yF/RYDEN.png' },
+  { id: 'oscar', name: 'OSCAR', image: 'https://i.ibb.co/KzKM9VKT/OSCAR.png' },
+  { id: 'kassie', name: 'KASSIE', image: 'https://i.ibb.co/qYD4KqYj/KASSIE.png' },
+  { id: 'kenta', name: 'KENTA', image: 'https://i.ibb.co/nXycc5H/KENTA.png' },
+  { id: 'extrema', name: 'EXTREMA', image: 'https://i.ibb.co/C3Nv8cYH/EXTREMA.png' },
+  { id: 'alok', name: 'ALOK', image: 'https://i.ibb.co/JwG3C41h/ALOK.png' },
+  { id: 'ignis', name: 'IGNIS', image: 'https://i.ibb.co/7N2n6qC0/IGNIS.png' },
+  { id: 'wukong', name: 'WUKONG', image: 'https://i.ibb.co/W4JLHZXz/WUKONG.png' },
+  { id: 'nero', name: 'NERO', image: 'https://i.ibb.co/9HSp4GsC/NERO.png' }
+];

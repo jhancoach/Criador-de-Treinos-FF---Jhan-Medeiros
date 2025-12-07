@@ -1,15 +1,16 @@
-import React, { Component, useState, useEffect, useMemo, useRef, ErrorInfo, ReactNode } from 'react';
+import React, { useState, useEffect, useMemo, useRef, ErrorInfo, ReactNode, Component } from 'react';
 import { 
   Languages, Zap, ArrowRight, ListPlus, Globe, Map as MapIcon, Users, BarChart2, Share2, Instagram,
   ClipboardList, Check, Save, Trash2, Upload, AlertTriangle, MousePointer2, RefreshCw, Download, Image,
-  Binary, Crown, Monitor, X, Target, Info, ShieldCheck, UserPlus, Unlock, Home, ChevronLeft, Sun, Moon, HelpCircle, FileJson, Trophy, Flame, Clock
+  Binary, Crown, Monitor, X, Target, Info, ShieldCheck, UserPlus, Unlock, Home, ChevronLeft, Sun, Moon, HelpCircle, FileJson, Trophy, Flame, Clock, Swords, Crosshair, Ban, Dna, Settings, Layout, Shuffle, Grid, RotateCcw, CheckCircle, Plus, Minus, LogOut
 } from 'lucide-react';
 import { 
   Step, Language, Team, TrainingMode, MatchScore, ProcessedScore, 
   Position, SavedTrainingSession, OpenTraining, TrainingRequest, 
-  ReplayEvent, PlayerAnalysis, PlayerStats, POINTS_SYSTEM 
+  ReplayEvent, PlayerAnalysis, PlayerStats, POINTS_SYSTEM,
+  VS_Step, PBMode, MapStrategy, DraftState, TurnAction, SeriesMatchResult
 } from './types';
-import { MAPS, WARNINGS } from './constants';
+import { MAPS, WARNINGS, CHARACTERS } from './constants';
 import { Button } from './components/Button';
 import { DraggableMap } from './components/DraggableMap';
 import { Tooltip } from './components/Tooltip';
@@ -23,43 +24,18 @@ const TEAM_COLORS = [
 
 const TRANSLATIONS = {
   pt: {
+    landing: { title: 'SELECIONE O MODO DE JOGO', br: 'BATTLE ROYALE', brDesc: 'Criador de Treino Completo (Mapas, Tabela, MVP)', vs: 'MODO 4X4', vsDesc: 'Picks e Bans Modo WB', enter: 'ENTRAR' },
     hero: { subtitle: 'GERENCIADOR DE BATTLE ROYALE', title1: 'CRIADOR DE', title2: 'TREINO', desc: 'A plataforma mais completa para gestão competitiva. Sorteio de mapas, tabela automática e estatísticas detalhadas.', start: 'COMEÇAR', queue: 'TREINOS ROLANDO', hub: 'HUB PÚBLICO', footer: 'CRIADO POR JHAN' },
     steps: { maps: 'Mapas', teams: 'Times', calls: 'Calls', scoring: 'Pontos', results: 'Resultados' },
     mode: { title: 'SELECIONE O MODO', basic: 'Básico', basicDesc: 'Modo simplificado. Listas de texto para sorteio e calls. Ideal para treinos rápidos.', premium: 'Premium', premiumDesc: 'Modo Visual. Mapas interativos, sorteio animado e posicionamento visual.', premiumPlus: 'Premium Plus', premiumPlusDesc: 'Modo Automático. Importação de JSON para estatísticas de MVP, Dano e Kills.', recommended: 'VISUAL', feats: { cityList: 'Calls por Lista', mapSort: 'Sorteio em Texto', scoreTable: 'Tabela Manual', interactive: 'Mapas Interativos', dragDrop: 'Posicionamento Visual', replay: 'Importação JSON', mvp: 'MVP e Dano Real' } },
     register: { title: 'REGISTRO DE TIMES', placeholder: 'Nome do Time (Ex: LOUD, FX, PAIN)...', add: 'ADICIONAR', next: 'PRÓXIMO', empty: 'Nenhum time adicionado.', copied: 'Copiado!', shareLineup: 'Compartilhar Escalação', tip: 'Dica: Use a TAG do time igual ao jogo para o Premium Plus funcionar automaticamente.' },
     sort: { title: 'SORTEIO DE MAPAS', spin: 'SORTEAR ORDEM', respin: 'SORTEAR NOVAMENTE', strategy: 'DEFINIR ESTRATÉGIA', pool: 'Mapas Disponíveis', basicTitle: 'Ordem dos Mapas' },
-    strategy: { title: 'DEFINIÇÃO DE CALLS', import: 'Importar', saveJson: 'JSON', saveImg: 'Imagem', scoring: 'PONTUAÇÃO', match: 'Queda', select: 'Selecione a Call...', free: 'LIVRE', defineCalls: 'Definir Calls (Lista)' },
+    strategy: { title: 'DEFINICIÓN DE CALLS', import: 'Importar', saveJson: 'JSON', saveImg: 'Imagem', scoring: 'PONTUAÇÃO', match: 'Queda', select: 'Selecione a Call...', free: 'LIVRE', defineCalls: 'Definir Calls (Lista)' },
     scoring: { title: 'PONTUAÇÃO', rank: 'Rank #', kills: 'Kills', loadReplay: 'Carregar Arquivo .JSON', results: 'VER RESULTADOS', manual: 'Tabela de Pontuação', dragJson: 'Arraste o arquivo JSON aqui ou clique para selecionar', successJson: 'Arquivo processado com sucesso!', errorJson: 'Erro ao ler arquivo. Verifique o formato.' },
-    dashboard: { title: 'RESULTADOS & ESTATÍSTICAS', tabRank: 'CLASSIFICAÇÃO', tabMvp: 'MVP & STATS', social: 'Compartilhar', saveHub: 'Publicar no Hub', table: { team: 'Time', total: 'Pts Totais', pos: 'Posição (Pts)', killPts: 'Kills (Pts)', booyah: 'Booyahs', last: 'Última Queda', player: 'Jogador', mvpScore: 'MVP Score', damage: 'Dano', time: 'Tempo Vivo' }, emptyPlayer: 'Nenhum dado de jogador. No modo Premium Plus, os dados vêm do JSON.', resultTitle: 'RESULTADO FINAL', points: 'PONTOS' },
+    dashboard: { title: 'RESULTADOS & ESTATÍSTICAS', tabRank: 'CLASSIFICAÇÃO', tabMvp: 'MVP & STATS', social: 'Compartilhar', saveHub: 'Publicar no Hub', table: { team: 'Team', total: 'Pts Totais', pos: 'Posição (Pts)', killPts: 'Kills (Pts)', booyah: 'Booyahs', last: 'Última Queda', player: 'Jogador', mvpScore: 'MVP Score', damage: 'Dano', time: 'Tempo Vivo' }, emptyPlayer: 'Nenhum dado de jogador. No modo Premium Plus, os dados vêm do JSON.', resultTitle: 'RESULTADO FINAL', points: 'PONTOS' },
     waiting: { title: 'LISTA DE ESPERA & TREINOS', adminArea: 'Área do Organizador', yourName: 'Seu Nome/Nick', trainingName: 'Nome do Treino', pin: 'PIN de Segurança (ex: 1234)', create: 'CRIAR LISTA', successCreate: 'Lista de espera criada com sucesso!', requestTitle: 'Solicitar Vaga', selectTraining: 'Selecione um Treino...', yourTeam: 'Nome do Seu Time', sendRequest: 'ENVIAR SOLICITAÇÃO', successRequest: 'Solicitação enviada!', queue: 'Treinos Disponíveis (Rolando Agora)', generate: 'GERAR TREINO', delete: 'Tem certeza que deseja apagar esta lista?' },
     hub: { title: 'HUB DE TREINOS', desc: 'Seu Histórico de Sessões Salvas', info: 'Os dados são salvos no cache deste navegador.', empty: 'Nenhum treino salvo encontrado', load: 'Carregar este treino', delete: 'Excluir permanentemente', confirmLoad: 'Carregar este treino substituirá os dados atuais. Continuar?', emptyDesc: 'Para ver seus treinos aqui, clique em "Publicar no Hub" na tela de Resultados após finalizar uma sessão.' },
     common: { error: 'Ops! Algo deu errado.', reload: 'Recarregar Página', back: 'Voltar', home: 'Ir para Início', draft: 'Salvar Rascunho', help: 'Ajuda', theme: 'Cor Destaque', language: 'Idioma', dark: 'Modo Escuro', light: 'Modo Claro', confirmHome: 'Tem certeza? Todo o progresso não salvo pode ser perdido.', draftSaved: 'Rascunho salvo no navegador!', draftLoaded: 'Rascunho carregado com sucesso!', yes: 'Sim', no: 'Não', cancel: 'Cancelar', overview: 'Visão Geral', howTo: 'Como Usar', interactiveMap: 'Mapa Interativo' }
-  },
-  en: {
-    hero: { subtitle: 'BATTLE ROYALE MANAGER', title1: 'ORGANIZE YOUR', title2: 'TOURNAMENT', desc: 'The most complete platform for competitive management. Map draw, automated leaderboard and detailed statistics.', start: 'START NOW', queue: 'LIVE TRAININGS', hub: 'PUBLIC HUB', footer: 'CREATED BY JHAN' },
-    steps: { maps: 'Maps', teams: 'Teams', calls: 'Strategy', scoring: 'Scoring', results: 'Results' },
-    mode: { title: 'SELECT MODE', basic: 'Basic', basicDesc: 'Simplified mode. Text lists for sorting and calls. Ideal for quick practice.', premium: 'Premium', premiumDesc: 'Visual Mode. Interactive maps, animated draw, and visual positioning.', premiumPlus: 'Premium Plus', premiumPlusDesc: 'Automated Mode. JSON import for MVP, Damage, and Kill stats.', recommended: 'VISUAL', feats: { cityList: 'List Calls', mapSort: 'Text Draw', scoreTable: 'Manual Table', interactive: 'Interactive Maps', dragDrop: 'Visual Positioning', replay: 'JSON Import', mvp: 'MVP & Real Damage' } },
-    register: { title: 'TEAM REGISTRATION', placeholder: 'Team Name (e.g. LOUD)...', add: 'ADD', next: 'NEXT', empty: 'No teams added.', copied: 'Copied!', shareLineup: 'Share Lineup', tip: 'Tip: Use the team TAG matching the game for Premium Plus to work automatically.' },
-    sort: { title: 'MAP SORT', spin: 'SPIN MAPS', respin: 'SPIN AGAIN', strategy: 'DEFINE STRATEGY', pool: 'Available Maps', basicTitle: 'Map Order' },
-    strategy: { title: 'STRATEGY DEFINITION', import: 'Import', saveJson: 'JSON', saveImg: 'Image', scoring: 'SCORING', match: 'Match', select: 'Select Call...', free: 'FREE', defineCalls: 'Define Calls (List)' },
-    scoring: { title: 'SCORING', rank: 'Rank #', kills: 'Kills', loadReplay: 'Load .JSON File', results: 'VIEW RESULTS', manual: 'Score Table', dragJson: 'Drag JSON file here or click to select', successJson: 'File processed successfully!', errorJson: 'Error reading file.' },
-    dashboard: { title: 'RESULTS & STATISTICS', tabRank: 'LEADERBOARD', tabMvp: 'MVP & STATS', social: 'Share', saveHub: 'Publish to Hub', table: { team: 'Team', total: 'Total Pts', pos: 'Pos (Pts)', killPts: 'Kills (Pts)', booyah: 'Booyahs', last: 'Last Match', player: 'Player', mvpScore: 'MVP Score', damage: 'Damage', time: 'Time Alive' }, emptyPlayer: 'No player data. In Premium Plus, data comes from JSON.', resultTitle: 'FINAL RESULT', points: 'POINTS' },
-    waiting: { title: 'WAITING LIST & LIVE', adminArea: 'Organizer Area', yourName: 'Your Name/Nick', trainingName: 'Training Name', pin: 'Security PIN (e.g. 1234)', create: 'CREATE LIST', successCreate: 'Waiting list created successfully!', requestTitle: 'Request Entry', selectTraining: 'Select Training...', yourTeam: 'Your Team Name', sendRequest: 'SEND REQUEST', successRequest: 'Request sent!', queue: 'Ongoing Trainings', generate: 'GENERATE TRAINING', delete: 'Are you sure you want to delete this list?' },
-    hub: { title: 'TRAINING HUB', desc: 'Your Saved Session History', info: 'Data is saved in this browser\'s cache.', empty: 'No saved trainings found', load: 'Load this training', delete: 'Delete permanently', confirmLoad: 'Loading this training will replace current data. Continue?', emptyDesc: 'To see your trainings here, click "Publish to Hub" on the Results screen after finishing a session.' },
-    common: { error: 'Oops! Algo deu errado.', reload: 'Reload Page', back: 'Back', home: 'Go Home', draft: 'Save Draft', help: 'Help', theme: 'Accent Color', language: 'Language', dark: 'Dark Mode', light: 'Light Mode', confirmHome: 'Are you sure? All unsaved progress may be lost.', draftSaved: 'Draft saved in browser!', draftLoaded: 'Draft loaded successfully!', yes: 'Yes', no: 'No', cancel: 'Cancel', overview: 'Overview', howTo: 'How to Use', interactiveMap: 'Interactive Map' }
-  },
-  es: {
-    hero: { subtitle: 'GESTOR DE BATTLE ROYALE', title1: 'ORGANIZA TU', title2: 'TORNEO', desc: 'La plataforma más completa para gestión competitiva. Sorteio de mapas, tabla automática e estatísticas detalladas.', start: 'EMPEZAR', queue: 'ENTRENAMIENTOS', hub: 'HUB PÚBLICO', footer: 'CREADO POR JHAN' },
-    steps: { maps: 'Mapas', teams: 'Equipos', calls: 'Calls', scoring: 'Puntos', results: 'Resultados' },
-    mode: { title: 'SELECCIONAR MODO', basic: 'Básico', basicDesc: 'Modo simplificado. Listas de texto para sorteo y calls. Ideal para prácticas rápidas.', premium: 'Premium', premiumDesc: 'Modo Visual. Mapas interactivos, sorteo animado y posicionamento visual.', premiumPlus: 'Premium Plus', premiumPlusDesc: 'Modo Automático. Importación de JSON para estadísticas de MVP, Daño y Kills.', recommended: 'VISUAL', feats: { cityList: 'Calls por Lista', mapSort: 'Sorteo de Texto', scoreTable: 'Tabla Manual', interactive: 'Mapas Interactivos', dragDrop: 'Posicionamento Visual', replay: 'Importación JSON', mvp: 'MVP y Daño Real' } },
-    register: { title: 'REGISTRO DE EQUIPOS', placeholder: 'Nombre del Equipo (Ej: LOUD)...', add: 'AGREGAR', next: 'SIGUIENTE', empty: 'Ningún equipo agregado.', copied: '¡Copiado!', shareLineup: 'Compartir Alineación', tip: 'Consejo: Usa el TAG del equipo igual al juego para que Premium Plus funcione automáticamente.' },
-    sort: { title: 'SORTEO DE MAPAS', spin: 'SORTEAR MAPAS', respin: 'SORTEAR NUEVAMENTE', strategy: 'DEFINIR ESTRATEGIA', pool: 'Mapas Disponibles', basicTitle: 'Orden de Mapas' },
-    strategy: { title: 'DEFINICIÓN DE CALLS', import: 'Importar', saveJson: 'JSON', saveImg: 'Imagem', scoring: 'PUNTUACIÓN', match: 'Partida', select: 'Seleccione Call...', free: 'LIBRE', defineCalls: 'Definir Calls (Lista)' },
-    scoring: { title: 'PUNTUACIÓN', rank: 'Rank #', kills: 'Kills', loadReplay: 'Cargar Archivo .JSON', results: 'VER RESULTADOS', manual: 'Tabla de Puntuación', dragJson: 'Arrastre el archivo JSON aquí o haga clic para seleccionar', successJson: '¡Archivo procesado con éxito!', errorJson: 'Error al leer el archivo.' },
-    dashboard: { title: 'RESULTADOS Y ESTADÍSTICAS', tabRank: 'CLASIFICACIÓN', tabMvp: 'MVP Y STATS', social: 'Compartir', saveHub: 'Publicar en Hub', table: { team: 'Equipo', total: 'Pts Totales', pos: 'Pos (Pts)', killPts: 'Kills (Pts)', booyah: 'Booyahs', last: 'Última Partida', player: 'Jugador', mvpScore: 'MVP Score', damage: 'Daño', time: 'Tiempo Vivo' }, emptyPlayer: 'Aún no hay datos de jugadores. En modo Premium Plus, los datos vienen del JSON.', resultTitle: 'RESULTADO FINAL', points: 'PUNTOS' },
-    waiting: { title: 'LISTA DE ESPERA Y VIVO', adminArea: 'Área del Organizador', yourName: 'Tu Nombre/Nick', trainingName: 'Nombre del Entrenamiento', pin: 'PIN de Seguridad (ej: 1234)', create: 'CREAR LISTA', successCreate: '¡Lista de espera creada con éxito!', requestTitle: 'Solicitar Cupo', selectTraining: 'Selecciona un Entrenamiento...', yourTeam: 'Nombre de tu Equipo', sendRequest: 'ENVIAR SOLICITUD', successRequest: '¡Solicitud enviada!', queue: 'Entrenamientos en Curso', generate: 'GENERAR ENTRENAMIENTO', delete: '¿Seguro que deseas eliminar esta lista?' },
-    hub: { title: 'HUB DE ENTRENAMIENTOS', desc: 'Tu Historial de Sesiones', info: 'Los datos se guardan en la caché de este navegador.', empty: 'No se encontraron entrenamientos guardados', load: 'Cargar este entrenamiento', delete: 'Eliminar permanentemente', confirmLoad: 'Cargar este entrenamiento reemplazará los datos actuales. ¿Continuar?', emptyDesc: 'Para ver tus entrenamientos aquí, haz clic en "Publicar en Hub" en la pantalla de Resultados después de finalizar una sesión.' },
-    common: { error: '¡Ups! Algo salió mal.', reload: 'Recargar Página', back: 'Volver', home: 'Ir al Inicio', draft: 'Guardar Borrador', help: 'Ayuda', theme: 'Color Destacado', language: 'Idioma', dark: 'Modo Oscuro', light: 'Modo Claro', confirmHome: '¿Estás seguro? Todo el progreso no guardado se perderá.', draftSaved: '¡Borrador guardado en el navegador!', draftLoaded: '¡Borrador cargado con éxito!', yes: 'Sí', no: 'No', cancel: 'Cancelar', overview: 'Visión General', howTo: 'Cómo Usar', interactiveMap: 'Mapa Interativo' }
   }
 };
 
@@ -71,9 +47,12 @@ const STEPS_FLOW = [
     { id: Step.DASHBOARD, labelKey: 'results', icon: BarChart2 },
 ];
 
+const VS_SNAKE_ORDER: TurnAction[] = ['BAN_A', 'BAN_B', 'PICK_A', 'PICK_B', 'PICK_B', 'PICK_A', 'PICK_A', 'PICK_B', 'PICK_B', 'PICK_A'];
+const VS_LINEAR_ORDER: TurnAction[] = ['BAN_A', 'BAN_B', 'PICK_A', 'PICK_B', 'PICK_A', 'PICK_B', 'PICK_A', 'PICK_B', 'PICK_A', 'PICK_B'];
+
 // Error Boundary
 interface ErrorBoundaryProps {
-  children: ReactNode;
+  children?: ReactNode;
 }
 
 interface ErrorBoundaryState {
@@ -106,7 +85,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 const App: React.FC = () => {
   // State
   const [lang, setLang] = useState<Language>('pt');
-  const [step, setStep] = useState<Step>(Step.HOME);
+  const [step, setStep] = useState<Step>(Step.LANDING);
   const [mode, setMode] = useState<TrainingMode>('basic');
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -123,12 +102,33 @@ const App: React.FC = () => {
   
   // UI State
   const [isSpinning, setIsSpinning] = useState(false);
+  const [isVsMapSpinning, setIsVsMapSpinning] = useState(false);
   const [activeStrategyMapIndex, setActiveStrategyMapIndex] = useState(0);
   const [currentMatchTab, setCurrentMatchTab] = useState(1);
   const [dashboardTab, setDashboardTab] = useState<'leaderboard' | 'mvp'>('leaderboard');
   const [savedTrainings, setSavedTrainings] = useState<SavedTrainingSession[]>([]);
   const [openTrainings, setOpenTrainings] = useState<OpenTraining[]>([]);
   
+  // 4x4 Mode State
+  const [vsStep, setVsStep] = useState<VS_Step>('HOME');
+  const [vsConfigStep, setVsConfigStep] = useState(0); // 0: Teams, 1: Mode, 2: MD, 3: Maps
+  const [pbMode, setPbMode] = useState<PBMode>('snake');
+  const [mdFormat, setMdFormat] = useState<number>(3);
+  const [roundsFormat, setRoundsFormat] = useState<11 | 13>(13);
+  const [mapStrategy, setMapStrategy] = useState<MapStrategy>('no_repeat');
+  const [vsMaps, setVsMaps] = useState<string[]>([]);
+  const [draftState, setDraftState] = useState<DraftState>({
+      bansA: [], bansB: [], picksA: [], picksB: [], turnIndex: 0, history: [], isComplete: false
+  });
+  const [teamAName, setTeamAName] = useState('Time A');
+  const [teamBName, setTeamBName] = useState('Time B');
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  const [matchRoundScore, setMatchRoundScore] = useState({ a: 0, b: 0 });
+  const [seriesHistory, setSeriesHistory] = useState<SeriesMatchResult[]>([]);
+  const [seriesScore, setSeriesScore] = useState({ a: 0, b: 0 });
+  const [showWinnerModal, setShowWinnerModal] = useState(false);
+  const historyRef = useRef<HTMLDivElement>(null);
+
   // Waiting List Form
   const [wlAdminName, setWlAdminName] = useState('');
   const [wlTrainingName, setWlTrainingName] = useState('');
@@ -149,9 +149,21 @@ const App: React.FC = () => {
 
   // --- Handlers ---
   const handleStart = () => setStep(Step.MODE_SELECT);
-  const handleHome = () => { if(window.confirm(t.common.confirmHome)) setStep(Step.HOME); };
+  const handleHome = () => { if(window.confirm(t.common.confirmHome)) setStep(Step.LANDING); };
   const handleBack = () => {
-    if(step === Step.MODE_SELECT) setStep(Step.HOME);
+    if(step === Step.HOME) setStep(Step.LANDING);
+    else if(step === Step.MODE_4X4) {
+        if (vsStep === 'HOME') setStep(Step.LANDING);
+        else if (vsStep === 'CONFIG') {
+            if (vsConfigStep > 0) setVsConfigStep(vsConfigStep - 1);
+            else setVsStep('HOME');
+        }
+        else if (vsStep === 'DRAFT') {
+            if (window.confirm('Sair da partida? O progresso será perdido.')) setVsStep('CONFIG');
+        }
+        else if (vsStep === 'HISTORY') setVsStep('HOME'); // Reset
+    }
+    else if(step === Step.MODE_SELECT) setStep(Step.HOME);
     else if(step === Step.TEAM_REGISTER) setStep(Step.MODE_SELECT);
     else if(step === Step.MAP_SORT) setStep(Step.TEAM_REGISTER);
     else if(step === Step.STRATEGY) setStep(Step.MAP_SORT);
@@ -192,6 +204,166 @@ const App: React.FC = () => {
         setIsSpinning(false);
       }
     }, 100);
+  };
+
+  // 4x4 Logic
+  const handleMapSort4x4 = () => {
+      setIsVsMapSpinning(true);
+      let duration = 2000;
+      let start = Date.now();
+      
+      const spin = setInterval(() => {
+        let available = [...MAPS];
+        let selected: string[] = [];
+        
+        if (mapStrategy === 'fixed') {
+            const map = available[Math.floor(Math.random() * available.length)];
+            selected = Array(mdFormat).fill(map.id);
+        } else {
+            for (let i = 0; i < mdFormat; i++) {
+                if (available.length === 0 && mapStrategy === 'no_repeat') break;
+                if (mapStrategy === 'repeat') available = [...MAPS];
+                
+                const randIndex = Math.floor(Math.random() * available.length);
+                selected.push(available[randIndex].id);
+                
+                if (mapStrategy === 'no_repeat') available.splice(randIndex, 1);
+            }
+        }
+        setVsMaps(selected);
+
+        if (Date.now() - start > duration) {
+            clearInterval(spin);
+            setIsVsMapSpinning(false);
+        }
+      }, 100);
+  };
+
+  const startSeries = () => {
+      setDraftState({ bansA: [], bansB: [], picksA: [], picksB: [], turnIndex: 0, history: [], isComplete: false });
+      setCurrentMatchIndex(0);
+      setMatchRoundScore({ a: 0, b: 0 }); // Reset Rounds
+      setSeriesHistory([]);
+      setSeriesScore({ a: 0, b: 0 });
+      setShowWinnerModal(false);
+      setVsStep('DRAFT');
+  };
+
+  const resetMatchDraft = () => {
+      if(window.confirm('Tem certeza? O draft e o placar atual serão reiniciados.')) {
+          setDraftState({ bansA: [], bansB: [], picksA: [], picksB: [], turnIndex: 0, history: [], isComplete: false });
+          setMatchRoundScore({ a: 0, b: 0 }); // Reset Rounds
+          setShowWinnerModal(false);
+      }
+  };
+
+  const updateMatchScore = (team: 'a' | 'b', delta: number) => {
+      setMatchRoundScore(prev => {
+          const newVal = Math.max(0, prev[team] + delta);
+          const winCap = roundsFormat === 13 ? 7 : 6;
+          if (newVal > winCap) return prev;
+          return { ...prev, [team]: newVal };
+      });
+  };
+
+  const handleMatchEnd = (winner: 'A' | 'B') => {
+      // Save current match
+      const result: SeriesMatchResult = {
+          matchIndex: currentMatchIndex,
+          mapId: vsMaps[currentMatchIndex],
+          winner,
+          draftState: { ...draftState }
+      };
+      
+      const newHistory = [...seriesHistory, result];
+      setSeriesHistory(newHistory);
+      
+      const newScore = { ...seriesScore, [winner.toLowerCase()]: seriesScore[winner.toLowerCase() as 'a' | 'b'] + 1 };
+      setSeriesScore(newScore);
+
+      // Check series condition
+      const winsNeeded = Math.ceil(mdFormat / 2);
+      if (newScore.a >= winsNeeded || newScore.b >= winsNeeded || currentMatchIndex >= mdFormat - 1) {
+          // Series Over
+          setVsStep('HISTORY');
+      } else {
+          // Next Match
+          setCurrentMatchIndex(prev => prev + 1);
+          setDraftState({ bansA: [], bansB: [], picksA: [], picksB: [], turnIndex: 0, history: [], isComplete: false });
+          setMatchRoundScore({ a: 0, b: 0 }); // Reset Rounds
+          setShowWinnerModal(false);
+      }
+  };
+
+  const getTurnInfo = (turnIndex: number, mode: PBMode, matchIndex: number) => {
+      let action: TurnAction | null = null;
+      if (mode === 'snake') action = VS_SNAKE_ORDER[turnIndex];
+      else if (mode === 'linear') action = VS_LINEAR_ORDER[turnIndex];
+      // Mirrored Logic
+      else if (mode === 'mirrored') {
+          if (turnIndex < 2) action = turnIndex === 0 ? 'BAN_A' : 'BAN_B'; // Simulating simultaneous
+          else action = turnIndex % 2 === 0 ? 'PICK_A' : 'PICK_B'; // Simulating picks
+      }
+
+      // Alternate Turn Logic: If match index is Odd (2nd, 4th...), swap A and B
+      if (action && matchIndex % 2 !== 0) {
+          if (action.endsWith('_A')) return action.replace('_A', '_B') as TurnAction;
+          if (action.endsWith('_B')) return action.replace('_B', '_A') as TurnAction;
+      }
+
+      return action;
+  };
+
+  const handleDraftClick = (charId: string) => {
+      if (draftState.isComplete) return;
+      if (draftState.bansA.includes(charId) || draftState.bansB.includes(charId) || draftState.picksA.includes(charId) || draftState.picksB.includes(charId)) return;
+
+      const newState = { ...draftState };
+      
+      // Determine action based on current state and alternating match logic
+      let action = getTurnInfo(newState.turnIndex, pbMode, currentMatchIndex);
+      
+      if (!action) return;
+
+      if (action === 'BAN_A') newState.bansA.push(charId);
+      if (action === 'BAN_B') newState.bansB.push(charId);
+      if (action === 'PICK_A') newState.picksA.push(charId);
+      if (action === 'PICK_B') newState.picksB.push(charId);
+
+      newState.turnIndex++;
+      if (newState.turnIndex >= 10) newState.isComplete = true;
+
+      if (action) {
+          newState.history.push({ action, charId });
+          setDraftState(newState);
+      }
+  };
+
+  // Drag and Drop Handlers
+  const handleDragStart = (e: React.DragEvent, charId: string) => {
+      e.dataTransfer.setData('charId', charId);
+  };
+
+  const allowDrop = (e: React.DragEvent) => {
+      e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, targetTeam: 'A' | 'B') => {
+      e.preventDefault();
+      const charId = e.dataTransfer.getData('charId');
+      if (!charId) return;
+
+      const currentTurn = getTurnInfo(draftState.turnIndex, pbMode, currentMatchIndex);
+      if (!currentTurn) return;
+
+      // Validate drop: Team A panel only accepts drops when it's Team A's turn
+      if (targetTeam === 'A' && (currentTurn === 'BAN_A' || currentTurn === 'PICK_A')) {
+          handleDraftClick(charId);
+      }
+      // Validate drop: Team B panel only accepts drops when it's Team B's turn
+      else if (targetTeam === 'B' && (currentTurn === 'BAN_B' || currentTurn === 'PICK_B')) {
+          handleDraftClick(charId);
+      }
   };
 
   // Replay Logic
@@ -408,6 +580,22 @@ const App: React.FC = () => {
                               </ul>
                           </div>
                       )}
+                      
+                      {step === Step.MODE_4X4 && (
+                          <div className="space-y-2 border-t border-theme pt-4">
+                              <h4 className="font-bold text-red-500 flex items-center gap-2"><Swords size={16}/> Modo 4x4 (Versus)</h4>
+                              <p className="text-sm text-gray-400">Gerencie partidas competitivas de Picks e Bans.</p>
+                              <ul className="text-xs text-gray-500 list-disc pl-4 space-y-1">
+                                  <li>Configure os times e o formato da série (MD1, MD3, etc).</li>
+                                  <li>Realize o draft (Picks e Bans) seguindo o modo escolhido.</li>
+                                  <li>Você pode clicar ou <strong>arrastar</strong> os personagens para selecionar.</li>
+                                  <li>O primeiro a banir altera a cada partida da série.</li>
+                                  <li>Ao final de cada draft, revise a timeline e selecione o vencedor.</li>
+                                  <li>O sistema gerencia o placar da série automaticamente.</li>
+                              </ul>
+                          </div>
+                      )}
+
                       <div className="pt-4 border-t border-theme">
                           <h4 className="font-bold text-white text-sm mb-2">Teclas de Atalho</h4>
                           <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
@@ -423,694 +611,751 @@ const App: React.FC = () => {
   };
 
   // --- Renders ---
-  const renderHome = () => (
-    <div className="relative w-full min-h-screen flex flex-col justify-center overflow-hidden bg-[#0a0a0a] text-white p-4 lg:p-12">
+  
+  const renderLanding = () => (
+    <div className="relative w-full min-h-screen flex flex-col justify-center overflow-hidden bg-[#0a0a0a] text-white p-4">
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
         <div className="absolute top-6 right-6 z-20">
             <button onClick={() => setLang(lang === 'pt' ? 'en' : lang === 'en' ? 'es' : 'pt')} className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full backdrop-blur-md text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white">
                 <Languages size={14} /><span>{lang === 'pt' ? 'PT-BR' : lang === 'en' ? 'EN-US' : 'ES-ES'}</span>
             </button>
         </div>
-        <div className="max-w-[1400px] w-full mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative z-10">
-            <div className="space-y-8 animate-in slide-in-from-left duration-700">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#1A1A1A] border border-white/10 text-xs font-bold text-yellow-500 uppercase tracking-widest shadow-lg"><Zap size={14} fill="currentColor"/> {t.hero.subtitle}</div>
-                <h1 className={`${lang === 'es' ? 'text-4xl md:text-5xl lg:text-7xl' : 'text-5xl md:text-6xl lg:text-8xl'} font-black leading-none tracking-tighter text-white transition-all duration-300`}>
-                    {t.hero.title1}<br/><span className="text-[#FFD400]">{t.hero.title2}</span>
+        
+        <div className="max-w-6xl w-full mx-auto z-10 space-y-12">
+            <div className="text-center space-y-4 animate-fade-in">
+                <h1 className="text-4xl md:text-6xl font-black tracking-tighter flex items-center justify-center gap-4">
+                    <Zap className="text-primary fill-current" size={48}/> JHAN TRAINING
                 </h1>
-                <p className="text-base md:text-lg text-gray-400 max-w-lg leading-relaxed font-medium">{t.hero.desc}</p>
-                <div className="flex flex-wrap gap-4 pt-2">
-                    <button onClick={handleStart} className="px-8 py-4 bg-[#FFD400] text-black font-black text-lg rounded-xl hover:bg-[#ffe033] flex items-center gap-2">{t.hero.start} <ArrowRight size={24}/></button>
-                    <button onClick={() => setStep(Step.WAITING_LIST)} className="px-8 py-4 bg-[#1A1A1A] border border-white/10 text-white font-bold text-lg rounded-xl hover:bg-[#252525] flex items-center gap-2"><ListPlus size={24}/> {t.hero.queue}</button>
-                    <button onClick={() => setStep(Step.PUBLIC_HUB)} className="px-8 py-4 bg-[#1A1A1A] border border-white/10 text-white font-bold text-lg rounded-xl hover:bg-[#252525] flex items-center gap-2"><Globe size={24}/> {t.hero.hub}</button>
-                </div>
+                <p className="text-gray-400 text-lg uppercase tracking-widest font-bold">{t.landing.title}</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-right duration-700 delay-200">
-                <div className="p-6 bg-[#121212] border border-white/5 rounded-2xl"><MapIcon size={24} className="text-blue-500 mb-4"/><h3 className="text-xl font-bold text-white mb-1">{t.steps.maps}</h3></div>
-                <div className="p-6 bg-[#121212] border border-white/5 rounded-2xl"><Users size={24} className="text-green-500 mb-4"/><h3 className="text-xl font-bold text-white mb-1">{t.steps.teams}</h3></div>
-                <div className="p-6 bg-[#121212] border border-white/5 rounded-2xl"><BarChart2 size={24} className="text-purple-500 mb-4"/><h3 className="text-xl font-bold text-white mb-1">Stats</h3></div>
-                <div className="p-6 bg-[#121212] border border-white/5 rounded-2xl"><Share2 size={24} className="text-pink-500 mb-4"/><h3 className="text-xl font-bold text-white mb-1">Share</h3></div>
-            </div>
-        </div>
-    </div>
-  );
 
-  const renderModeSelect = () => (
-    <div className="w-full max-w-6xl mx-auto flex flex-col items-center animate-fade-in space-y-12 py-10">
-        <div className="text-center space-y-4">
-             <h2 className="text-4xl md:text-5xl font-black text-white tracking-tighter uppercase">{t.mode.title}</h2>
-             <p className="text-gray-400 max-w-2xl mx-auto text-lg opacity-80">Escolha a versão ideal para o seu nível de competição.</p>
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full px-4 md:px-0">
-            {/* Basic */}
-            <div className="bg-[#121212] border border-white/10 rounded-2xl p-8 hover:border-white/20 transition-all flex flex-col gap-6 group relative overflow-hidden h-full">
-                <div className="w-14 h-14 bg-gray-800 rounded-xl flex items-center justify-center text-white mb-2 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                    <ClipboardList size={28}/>
-                </div>
-                <div>
-                    <h3 className="text-2xl font-bold text-white mb-2">{t.mode.basic}</h3>
-                    <p className="text-gray-400 text-sm leading-relaxed">{t.mode.basicDesc}</p>
-                </div>
-                
-                <div className="space-y-3 my-4 flex-1">
-                    {[t.mode.feats.cityList, t.mode.feats.mapSort, t.mode.feats.scoreTable].map((feat, i) => (
-                        <div key={i} className="flex items-center gap-3 text-gray-300 text-sm">
-                            <Check size={16} className="text-gray-500 shrink-0"/> {feat}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-4 md:px-0">
+                {/* Battle Royale Card */}
+                <div onClick={() => setStep(Step.HOME)} className="group cursor-pointer relative bg-[#121212] border border-white/10 rounded-3xl p-8 md:p-12 hover:border-primary/50 transition-all duration-500 hover:scale-[1.02] hover:shadow-[0_0_50px_rgba(255,212,0,0.1)] overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <div className="relative z-10 flex flex-col items-center text-center gap-6">
+                        <div className="w-24 h-24 bg-gray-900 rounded-full flex items-center justify-center border-2 border-white/10 group-hover:border-primary group-hover:scale-110 transition-all duration-500 shadow-2xl">
+                            <Trophy size={40} className="text-gray-400 group-hover:text-primary transition-colors"/>
                         </div>
-                    ))}
-                </div>
-
-                <Button onClick={() => selectMode('basic')} variant="secondary" className="w-full py-4 border-gray-700 hover:bg-gray-800">Selecionar Básico</Button>
-            </div>
-
-            {/* Premium */}
-            <div className="bg-[#1A1A1A] border-2 border-primary/50 rounded-2xl p-8 flex flex-col gap-6 shadow-[0_0_50px_rgba(var(--color-primary),0.1)] relative transform lg:-translate-y-4 z-10 h-full">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-black text-xs font-black tracking-widest px-4 py-1.5 rounded-full uppercase shadow-lg shadow-primary/20 whitespace-nowrap">
-                    {t.mode.recommended}
-                </div>
-                
-                 <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center text-black mb-2 shadow-lg shadow-primary/20 animate-bounce-slow">
-                    <MapIcon size={28}/>
-                </div>
-                
-                <div>
-                    <h3 className="text-2xl font-bold text-primary mb-2">{t.mode.premium}</h3>
-                    <p className="text-gray-300 text-sm leading-relaxed">{t.mode.premiumDesc}</p>
-                </div>
-
-                <div className="space-y-3 my-4 flex-1">
-                     {[t.mode.feats.interactive, t.mode.feats.dragDrop, t.mode.feats.mapSort, t.mode.feats.scoreTable].map((feat, i) => (
-                        <div key={i} className="flex items-center gap-3 text-white font-medium text-sm">
-                            <div className="bg-primary/20 p-1 rounded-full shrink-0"><Check size={12} className="text-primary"/></div> {feat}
+                        <div>
+                            <h2 className="text-3xl font-black uppercase italic mb-2">{t.landing.br}</h2>
+                            <p className="text-gray-500 font-medium">{t.landing.brDesc}</p>
                         </div>
-                    ))}
-                </div>
-
-                <Button onClick={() => selectMode('premium')} variant="primary" className="w-full py-4 font-bold text-lg">Selecionar Premium</Button>
-            </div>
-
-            {/* Premium Plus */}
-             <div className="bg-[#121212] border border-purple-500/30 rounded-2xl p-8 hover:border-purple-500/60 transition-all flex flex-col gap-6 group relative overflow-hidden h-full">
-                <div className="absolute top-0 right-0 p-32 bg-purple-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
-
-                <div className="w-14 h-14 bg-purple-900/50 text-purple-400 border border-purple-500/20 rounded-xl flex items-center justify-center mb-2 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                    <Binary size={28}/>
-                </div>
-                <div>
-                    <h3 className="text-2xl font-bold text-purple-400 mb-2">{t.mode.premiumPlus}</h3>
-                    <p className="text-gray-400 text-sm leading-relaxed">{t.mode.premiumPlusDesc}</p>
-                </div>
-
-                 <div className="space-y-3 my-4 flex-1">
-                    {[t.mode.feats.replay, t.mode.feats.mvp, t.mode.feats.interactive, t.mode.feats.scoreTable].map((feat, i) => (
-                        <div key={i} className="flex items-center gap-3 text-gray-300 text-sm">
-                            <Check size={16} className="text-purple-500 shrink-0"/> {feat}
+                        <div className="mt-4 px-8 py-3 bg-white/5 border border-white/10 rounded-full font-bold text-sm uppercase tracking-widest group-hover:bg-primary group-hover:text-black transition-all">
+                            {t.landing.enter}
                         </div>
-                    ))}
+                    </div>
                 </div>
 
-                <Button onClick={() => selectMode('premium_plus')} variant="secondary" className="w-full py-4 border-purple-900/30 hover:bg-purple-900/20 hover:text-purple-400 hover:border-purple-500/50">Selecionar Plus</Button>
+                {/* 4x4 Mode Card */}
+                <div onClick={() => setStep(Step.MODE_4X4)} className="group cursor-pointer relative bg-[#121212] border border-white/10 rounded-3xl p-8 md:p-12 hover:border-red-500/50 transition-all duration-500 hover:scale-[1.02] hover:shadow-[0_0_50px_rgba(239,68,68,0.1)] overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <div className="relative z-10 flex flex-col items-center text-center gap-6">
+                        <div className="w-24 h-24 bg-gray-900 rounded-full flex items-center justify-center border-2 border-white/10 group-hover:border-red-500 group-hover:scale-110 transition-all duration-500 shadow-2xl">
+                            <Swords size={40} className="text-gray-400 group-hover:text-red-500 transition-colors"/>
+                        </div>
+                        <div>
+                            <h2 className="text-3xl font-black uppercase italic mb-2">{t.landing.vs}</h2>
+                            <p className="text-gray-500 font-medium">{t.landing.vsDesc}</p>
+                        </div>
+                        <div className="mt-4 px-8 py-3 bg-white/5 border border-white/10 rounded-full font-bold text-sm uppercase tracking-widest group-hover:bg-red-500 group-hover:text-white transition-all">
+                            {t.landing.enter}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
   );
 
-  const renderTeamRegister = () => (
-    <div className="w-full max-w-4xl mx-auto flex flex-col gap-6 animate-fade-in">
-        <div className="bg-blue-900/20 border border-blue-500/30 p-4 rounded-lg flex items-center gap-3 text-sm text-blue-200">
-            <Info size={16} /> {t.register.tip}
-        </div>
-        <div className="flex gap-4">
-            <input value={newTeamName} onChange={e => setNewTeamName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addTeam()} className="flex-1 bg-panel border border-theme rounded-lg px-4 py-3 text-white outline-none" placeholder={t.register.placeholder} />
-            <Button onClick={addTeam} disabled={!newTeamName.trim()}><Users size={18}/> {t.register.add}</Button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {teams.map(team => (
-                <div key={team.id} className="bg-panel border border-theme rounded-lg p-3 flex justify-between items-center group">
-                    <div className="flex items-center gap-3">
-                        <div className="w-6 h-6 rounded-full" style={{backgroundColor: team.color}}></div>
-                        <span className="font-bold text-sm">{team.name}</span>
-                    </div>
-                    <button onClick={() => deleteTeam(team.id)} className="text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100"><Trash2 size={14}/></button>
-                </div>
-            ))}
-        </div>
-        <div className="flex justify-end pt-4">
-            <Button onClick={() => setStep(Step.MAP_SORT)} size="lg" disabled={teams.length === 0}>{t.register.next} <ArrowRight size={20}/></Button>
-        </div>
-    </div>
-  );
-
-  const renderMapSort = () => {
-    // Basic Mode: Simple List
-    if (mode === 'basic') {
-        return (
-            <div className="w-full max-w-2xl mx-auto flex flex-col items-center gap-8 animate-fade-in text-center py-10">
-                <div className="w-full bg-panel border border-theme rounded-xl p-8">
-                     <h2 className="text-2xl font-bold mb-6">{t.sort.basicTitle}</h2>
-                     <Button onClick={spinRoulette} disabled={isSpinning} className="mb-6 w-full">
-                        {isSpinning ? <RefreshCw className="animate-spin mr-2"/> : <RefreshCw className="mr-2"/>}
-                        {shuffledMaps.length > 0 ? t.sort.respin : t.sort.spin}
-                     </Button>
-                     {shuffledMaps.length > 0 && (
-                         <div className="flex flex-col gap-2">
-                             {shuffledMaps.map((mapId, i) => (
-                                 <div key={i} className="flex items-center gap-4 p-3 bg-black/40 rounded border border-white/5">
-                                     <span className="font-mono text-gray-500 font-bold">#{i+1}</span>
-                                     <span className="font-bold">{MAPS.find(m => m.id === mapId)?.name}</span>
-                                 </div>
-                             ))}
-                         </div>
-                     )}
-                </div>
-                {shuffledMaps.length > 0 && <Button onClick={() => setStep(Step.STRATEGY)} size="lg">{t.sort.strategy} <ArrowRight/></Button>}
-            </div>
-        );
-    }
-    
-    // Premium & Plus: Visual Cards
-    return (
-        <div className="w-full max-w-5xl mx-auto flex flex-col items-center gap-8 animate-fade-in text-center py-10">
-            <div className="w-full bg-panel border border-theme rounded-2xl p-8 relative overflow-hidden min-h-[400px]">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none"></div>
-                <h2 className="text-2xl font-bold mb-6 relative z-10 uppercase tracking-widest">{t.sort.title}</h2>
-                <div className="flex justify-center mb-8 relative z-10">
-                    <Button onClick={spinRoulette} disabled={isSpinning} size="lg" className="h-20 text-2xl px-12 rounded-full shadow-2xl shadow-primary/20">
-                        {isSpinning ? <RefreshCw className="animate-spin mr-3" size={28}/> : <Globe className="mr-3" size={28}/>} 
-                        {shuffledMaps.length > 0 ? t.sort.respin : t.sort.spin}
-                    </Button>
-                </div>
-                {shuffledMaps.length > 0 ? (
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 w-full relative z-10">
-                        {shuffledMaps.map((mapId, idx) => {
-                            const mapInfo = MAPS.find(m => m.id === mapId);
-                            return (
-                                <div key={idx} className="group relative aspect-[3/4] rounded-xl overflow-hidden border-2 border-theme hover:border-primary transition-all shadow-lg animate-zoom-in" style={{animationDelay: `${idx*150}ms`}}>
-                                    <img src={mapInfo?.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"/>
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80"></div>
-                                    <div className="absolute bottom-0 left-0 w-full p-3">
-                                        <div className="text-[10px] font-bold text-primary mb-1">MAPA {idx + 1}</div>
-                                        <div className="text-lg font-black uppercase leading-none">{mapInfo?.name}</div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-5 gap-4 opacity-10 pointer-events-none">
-                        {[1,2,3,4,5].map(i => <div key={i} className="aspect-[3/4] bg-gray-500 rounded-xl"></div>)}
-                    </div>
-                )}
-            </div>
-            {shuffledMaps.length > 0 && (
-                <div className="animate-fade-in delay-500">
-                    <Button onClick={() => setStep(Step.STRATEGY)} size="lg" className="px-12">{t.sort.strategy} <ArrowRight/></Button>
-                </div>
-            )}
-        </div>
-    );
-  };
-
-  const renderStrategy = () => (
-    <div className="w-full h-full flex flex-col gap-4 animate-fade-in">
-        <div className="flex gap-2 overflow-x-auto pb-2">
-            {shuffledMaps.map((mapId, idx) => (
-                <button key={idx} onClick={() => setActiveStrategyMapIndex(idx)} className={`px-4 py-2 rounded-lg text-sm font-bold uppercase whitespace-nowrap ${activeStrategyMapIndex===idx ? 'bg-primary text-black' : 'bg-panel text-gray-500'}`}>
-                    {MAPS.find(m => m.id === mapId)?.name} #{idx+1}
-                </button>
-            ))}
-            <div className="ml-auto flex gap-2">
-                <Button onClick={() => setStep(Step.SCORING)} size="sm">{t.strategy.scoring} <ArrowRight/></Button>
-            </div>
-        </div>
-        
-        <div className="flex-1 flex flex-col md:flex-row gap-4 h-[600px]">
-            {/* Map Area */}
-            {mode !== 'basic' ? (
-                <div className="flex-1 bg-black/20 rounded-xl overflow-hidden relative border border-theme">
-                    {shuffledMaps[activeStrategyMapIndex] && (
-                        <DraggableMap
-                            mapName={MAPS.find(m => m.id === shuffledMaps[activeStrategyMapIndex])?.name || ''}
-                            image={MAPS.find(m => m.id === shuffledMaps[activeStrategyMapIndex])?.image || ''}
-                            teams={teams}
-                            positions={premiumPositions[shuffledMaps[activeStrategyMapIndex]] || {}}
-                            onPositionChange={(tid, pos) => setPremiumPositions({...premiumPositions, [shuffledMaps[activeStrategyMapIndex]]: { ...premiumPositions[shuffledMaps[activeStrategyMapIndex]], [tid]: pos }})}
-                            readOnly={false}
-                        />
-                    )}
-                </div>
-            ) : (
-                <div className="flex-1 bg-panel border border-theme rounded-xl p-8 flex items-center justify-center">
-                    <div className="text-center text-gray-500">
-                        <MapIcon size={48} className="mx-auto mb-4 opacity-50"/>
-                        <p>Mapa Visual desativado no modo Básico.</p>
-                        <p className="text-xs mt-2">Use a lista ao lado para definir as calls.</p>
-                    </div>
-                </div>
-            )}
-            
-            {/* Sidebar / Tools */}
-            <div className="w-80 bg-panel border border-theme rounded-xl p-4 overflow-y-auto flex flex-col gap-4">
-                 <div className="flex items-center gap-2 font-bold text-lg border-b border-theme pb-2">
-                     {mode === 'basic' ? <ListPlus size={20} className="text-primary"/> : <MousePointer2 size={20} className="text-primary"/>}
-                     {mode === 'basic' ? t.strategy.defineCalls : t.common.interactiveMap}
-                 </div>
-
-                 {mode === 'basic' ? (
-                     <div className="space-y-3">
-                         <p className="text-xs text-gray-400">Selecione a cidade para cada time.</p>
-                         {teams.map(t => (
-                             <div key={t.id} className="space-y-1">
-                                 <div className="flex items-center gap-2">
-                                     <div className="w-3 h-3 rounded-full" style={{backgroundColor: t.color}}></div>
-                                     <span className="text-sm font-bold">{t.name}</span>
-                                 </div>
-                                 <select 
-                                    className="w-full bg-black border border-theme rounded px-2 py-1.5 text-xs text-white"
-                                    value={basicSelections[shuffledMaps[activeStrategyMapIndex]]?.[t.id] || ''}
-                                    onChange={(e) => setBasicSelections({
-                                        ...basicSelections, 
-                                        [shuffledMaps[activeStrategyMapIndex]]: {
-                                            ...(basicSelections[shuffledMaps[activeStrategyMapIndex]] || {}),
-                                            [t.id]: e.target.value
-                                        }
-                                    })}
-                                 >
-                                     <option value="">{t.strategy.select}</option>
-                                     <option value="LIVRE">{t.strategy.free}</option>
-                                     {MAPS.find(m => m.id === shuffledMaps[activeStrategyMapIndex])?.cities.map(city => (
-                                         <option key={city} value={city}>{city}</option>
-                                     ))}
-                                 </select>
-                             </div>
-                         ))}
-                     </div>
-                 ) : (
-                     <div>
-                         <div className="text-xs text-gray-400 mb-4 bg-primary/10 p-2 rounded border border-primary/20">
-                            Arraste os ícones ou nomes dos times diretamente no mapa para definir as posições.
-                         </div>
-                         <div className="space-y-2">
-                            {teams.map(t => (
-                                <div key={t.id} className="flex items-center gap-2 p-2 rounded hover:bg-white/5 transition-colors cursor-pointer" onClick={() => {
-                                    // Optional: center map on this team or highlight
-                                }}>
-                                    <div className="w-3 h-3 rounded-full shadow-[0_0_5px_currentColor]" style={{backgroundColor: t.color}}></div>
-                                    <span className="text-sm font-medium">{t.name}</span>
-                                    {premiumPositions[shuffledMaps[activeStrategyMapIndex]]?.[t.id] && <Check size={12} className="ml-auto text-green-500"/>}
-                                </div>
-                            ))}
-                         </div>
-                     </div>
-                 )}
-            </div>
-        </div>
-    </div>
-  );
-
-  const renderScoring = () => (
-      <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in pb-20">
-          <div className="flex justify-between items-center bg-panel p-4 rounded-xl border border-theme">
-              <div className="flex items-center gap-4">
-                  <h2 className="text-3xl font-display font-bold text-primary">{t.scoring.title}</h2>
+  const renderVS_Home = () => (
+      <div className="flex flex-col items-center justify-center min-h-[80vh] gap-8 animate-fade-in p-6">
+          <div className="text-center space-y-2">
+              <h2 className="text-4xl font-display font-black text-white uppercase tracking-tighter">Gerenciador de Partidas</h2>
+              <div className="bg-red-500/20 text-red-500 border border-red-500/30 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest inline-flex items-center gap-2">
+                  <Swords size={14}/> Picks & Bans
               </div>
-              <Button onClick={() => setStep(Step.DASHBOARD)}>{t.scoring.results} <ArrowRight/></Button>
           </div>
 
-          <div className="bg-panel border border-theme rounded-xl overflow-hidden shadow-xl p-6">
-              <div className="flex overflow-x-auto border-b border-theme bg-black/40 p-1 gap-1 mb-6 rounded-lg">
-                  {[1,2,3,4,5,6].map(num => (
-                      <button 
-                        key={num} 
-                        onClick={() => setCurrentMatchTab(num)} 
-                        className={`px-6 py-2 rounded-lg font-bold transition-all text-sm uppercase tracking-wider ${currentMatchTab===num ? 'bg-primary text-black shadow-lg' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
-                      >
-                        Queda {num}
-                      </button>
-                  ))}
-              </div>
-              
-              {/* Premium Plus Specific Upload Area */}
-              {mode === 'premium_plus' && (
-                  <div className="mb-8 animate-fade-in">
-                      <div 
-                        onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-                        onDragLeave={() => setIsDragOver(false)}
-                        onDrop={handleFileDrop}
-                        onClick={() => replayInputRef.current?.click()}
-                        className={`border-2 border-dashed ${isDragOver ? 'border-primary bg-primary/10' : 'border-purple-500/50 bg-purple-900/10'} hover:border-purple-400 hover:bg-purple-900/20 rounded-xl p-10 flex flex-col items-center justify-center cursor-pointer transition-all group`}
-                      >
-                           <input 
-                            type="file" 
-                            accept=".json,.bin" 
-                            ref={replayInputRef} 
-                            className="hidden" 
-                            onChange={handleReplayUpload}
-                        />
-                        <div className="bg-purple-500/20 p-4 rounded-full mb-4 group-hover:scale-110 transition-transform">
-                            <FileJson size={48} className="text-purple-400"/>
-                        </div>
-                        <h3 className="text-xl font-bold text-white mb-2">Importar Arquivo de Replay (.JSON / .BIN)</h3>
-                        <p className="text-gray-400 text-sm max-w-md text-center">{t.scoring.dragJson}</p>
-                        <div className="flex gap-4 mt-6 text-xs text-purple-300">
-                             <span className="flex items-center gap-1 bg-purple-900/40 px-3 py-1 rounded border border-purple-500/30"><Flame size={12}/> Auto Kills</span>
-                             <span className="flex items-center gap-1 bg-purple-900/40 px-3 py-1 rounded border border-purple-500/30"><Trophy size={12}/> Auto MVP</span>
-                             <span className="flex items-center gap-1 bg-purple-900/40 px-3 py-1 rounded border border-purple-500/30"><Clock size={12}/> Auto Rank</span>
-                        </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-5xl">
+              {[
+                  { id: 'mode', icon: Dna, title: 'Modo de Picks', desc: 'Snake, Linear, Mirrored', action: () => { setVsStep('CONFIG'); setVsConfigStep(1); } },
+                  { id: 'md', icon: Trophy, title: 'Formato MD', desc: 'MD1, MD3, MD5, MD7', action: () => { setVsStep('CONFIG'); setVsConfigStep(2); } },
+                  { id: 'maps', icon: MapIcon, title: 'Sorteio de Mapas', desc: 'Definir Rotação', action: () => { setVsStep('CONFIG'); setVsConfigStep(3); } },
+              ].map(item => (
+                  <div key={item.id} onClick={item.action} className="bg-panel border border-theme hover:border-red-500 transition-all p-6 rounded-xl cursor-pointer group hover:scale-105">
+                      <div className="bg-black/50 w-12 h-12 rounded-lg flex items-center justify-center mb-4 group-hover:text-red-500 text-gray-400">
+                          <item.icon size={24}/>
                       </div>
-                      
-                      <div className="flex items-center gap-4 my-6">
-                          <div className="h-px bg-theme flex-1"></div>
-                          <span className="text-xs text-gray-500 uppercase font-bold">OU (Edição Manual)</span>
-                          <div className="h-px bg-theme flex-1"></div>
-                      </div>
-                  </div>
-              )}
-
-              {/* Standard Scoring Table (Always visible but secondary in Premium Plus) */}
-              <div>
-                  <div className="flex items-center gap-2 mb-4 text-xs font-bold text-gray-500 uppercase tracking-widest">
-                      <Target size={14}/> {t.scoring.manual}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {teams.map(team => {
-                          const score = matchScores[currentMatchTab]?.[team.id] || { rank: '', kills: '' };
-                          return (
-                            <div key={team.id} className={`bg-black/40 border ${mode === 'premium_plus' ? 'border-theme opacity-80 hover:opacity-100' : 'border-theme'} rounded-lg p-3 flex flex-col gap-2 transition-all`}>
-                                <div className="font-bold flex items-center gap-2 text-sm border-b border-white/5 pb-2">
-                                    <div className="w-2 h-2 rounded-full" style={{backgroundColor: team.color}}></div>
-                                    {team.name}
-                                </div>
-                                <div className="flex gap-2">
-                                    <div className="flex-1">
-                                        <label className="text-[10px] text-gray-500 uppercase font-bold mb-1 block">Rank #</label>
-                                        <input 
-                                            type="number" 
-                                            className="w-full bg-background border border-theme rounded p-2 text-center text-white font-mono focus:border-primary focus:outline-none" 
-                                            value={score.rank} 
-                                            onChange={e => setMatchScores({...matchScores, [currentMatchTab]: {...matchScores[currentMatchTab], [team.id]: {...score, rank: parseInt(e.target.value)||''}}})} 
-                                        />
-                                    </div>
-                                    <div className="flex-1">
-                                        <label className="text-[10px] text-gray-500 uppercase font-bold mb-1 block">Kills</label>
-                                        <input 
-                                            type="number" 
-                                            className="w-full bg-background border border-theme rounded p-2 text-center text-white font-mono focus:border-red-500 focus:outline-none" 
-                                            value={score.kills} 
-                                            onChange={e => setMatchScores({...matchScores, [currentMatchTab]: {...matchScores[currentMatchTab], [team.id]: {...score, kills: parseInt(e.target.value)||''}}})} 
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                          );
-                      })}
-                  </div>
-              </div>
-          </div>
-      </div>
-  );
-
-  const renderDashboard = () => (
-      <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in pb-20">
-          <div className="flex justify-between items-center">
-              <h2 className="text-4xl font-display font-bold">{t.dashboard.resultTitle}</h2>
-              <div className="flex gap-2">
-                <Button onClick={() => setDashboardTab(dashboardTab === 'leaderboard' ? 'mvp' : 'leaderboard')} variant="secondary">
-                    {dashboardTab === 'leaderboard' ? 'Ver MVP' : 'Ver Tabela'}
-                </Button>
-              </div>
-          </div>
-
-          {/* Leaderboard View */}
-          {dashboardTab === 'leaderboard' && (
-            <>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    {leaderboard.slice(0,3).map((t, i) => (
-                        <div key={t.teamId} className={`bg-panel border border-theme p-6 rounded-xl flex flex-col items-center ${i===0 ? 'border-yellow-500 order-2 scale-110 shadow-[0_0_30px_rgba(234,179,8,0.2)]' : i===1 ? 'order-1' : 'order-3'}`}>
-                            {i===0 && <Crown className="text-yellow-500 mb-2 fill-yellow-500/20" size={32}/>}
-                            <h3 className="font-bold text-xl mb-1">{t.teamName}</h3>
-                            <div className="text-4xl font-black text-primary tabular-nums">{t.totalPoints}</div>
-                            <div className="flex gap-4 mt-2 text-xs text-gray-500 font-bold uppercase">
-                                <span>{t.booyahs} Booyahs</span>
-                                <span>{t.totalKills} Kills</span>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-                <div className="bg-panel rounded-xl overflow-hidden border border-theme">
-                    <table className="w-full text-left">
-                        <thead className="bg-black/40 text-xs uppercase text-gray-500 font-bold tracking-wider">
-                            <tr><th className="p-4">#</th><th className="p-4">Team</th><th className="p-4 text-center">Booyahs</th><th className="p-4 text-center">Kills</th><th className="p-4 text-right">Points</th></tr>
-                        </thead>
-                        <tbody>
-                            {leaderboard.map((t, i) => (
-                                <tr key={t.teamId} className="border-t border-theme hover:bg-white/5 transition-colors">
-                                    <td className="p-4 text-gray-500 font-mono font-bold w-16">{i+1}</td>
-                                    <td className="p-4 font-bold text-lg">{t.teamName}</td>
-                                    <td className="p-4 text-center text-gray-400 font-mono">{t.booyahs}</td>
-                                    <td className="p-4 text-center text-gray-400 font-mono">{t.totalKills}</td>
-                                    <td className="p-4 text-right font-black text-2xl text-primary tabular-nums">{t.totalPoints}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </>
-          )}
-
-          {/* MVP View (Premium Plus) */}
-          {dashboardTab === 'mvp' && (
-            <div className="space-y-6">
-                 {Object.keys(playerExtendedStats).length === 0 ? (
-                     <div className="text-center py-20 text-gray-500 bg-panel rounded-xl border border-theme border-dashed">
-                         <Trophy size={48} className="mx-auto mb-4 opacity-50"/>
-                         <p>{mode === 'premium_plus' ? 'Faça upload do JSON na tela de Pontuação para ver os MVPs.' : 'Disponível apenas no modo Premium Plus com upload de JSON.'}</p>
-                     </div>
-                 ) : (
-                     <div className="bg-panel rounded-xl overflow-hidden border border-theme">
-                         <div className="p-4 border-b border-theme bg-purple-900/10 flex items-center gap-2 text-purple-400 font-bold uppercase tracking-wider">
-                             <Trophy size={16}/> MVP Ranking (Algoritmo Premium)
-                         </div>
-                         <table className="w-full text-left">
-                            <thead className="bg-black/40 text-xs uppercase text-gray-500 font-bold tracking-wider">
-                                <tr>
-                                    <th className="p-4">Rank</th>
-                                    <th className="p-4">Jogador</th>
-                                    <th className="p-4">Time</th>
-                                    <th className="p-4 text-center">Kills</th>
-                                    <th className="p-4 text-center">Dano</th>
-                                    <th className="p-4 text-right">MVP Score</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {Object.values(playerExtendedStats).sort((a: PlayerAnalysis, b: PlayerAnalysis) => b.mvpScore - a.mvpScore).map((p: PlayerAnalysis, i) => (
-                                    <tr key={p.name} className={`border-t border-theme hover:bg-white/5 transition-colors ${i===0 ? 'bg-yellow-500/10' : ''}`}>
-                                        <td className="p-4 font-mono font-bold text-gray-500 w-16">
-                                            {i===0 ? <Crown size={16} className="text-yellow-500"/> : i+1}
-                                        </td>
-                                        <td className="p-4 font-bold">{p.name}</td>
-                                        <td className="p-4 text-sm text-gray-400">{p.teamTag}</td>
-                                        <td className="p-4 text-center font-mono">{p.kills}</td>
-                                        <td className="p-4 text-center font-mono">{p.damage}</td>
-                                        <td className="p-4 text-right font-black text-lg text-primary">{p.mvpScore.toFixed(2)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                         </table>
-                     </div>
-                 )}
-            </div>
-          )}
-      </div>
-  );
-
-  const renderStepper = () => (
-    <div className="flex justify-center mb-8 overflow-x-auto pb-2">
-        <div className="flex items-center bg-panel border border-theme rounded-full p-1.5 shadow-lg backdrop-blur-md">
-            {STEPS_FLOW.map((s, idx) => {
-                const isActive = step === s.id;
-                const isCompleted = STEPS_FLOW.findIndex(flow => flow.id === step) > idx;
-                const Icon = s.icon;
-                
-                return (
-                    <div key={s.id} className="flex items-center">
-                        <button 
-                            onClick={() => isCompleted ? setStep(s.id) : null}
-                            disabled={!isCompleted && !isActive}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all text-sm font-bold whitespace-nowrap ${isActive ? 'bg-primary text-black shadow-lg' : isCompleted ? 'text-white hover:bg-white/10' : 'text-gray-600'}`}
-                        >
-                            <Icon size={16} className={isActive ? 'text-black' : isCompleted ? 'text-green-500' : ''}/>
-                            {t.steps[s.labelKey as keyof typeof t.steps]}
-                        </button>
-                        {idx < STEPS_FLOW.length - 1 && <div className="w-4 h-0.5 bg-gray-800 mx-1"></div>}
-                    </div>
-                );
-            })}
-        </div>
-    </div>
-  );
-
-  const renderWaitingList = () => (
-      <div className="w-full max-w-4xl mx-auto space-y-8 animate-fade-in pb-20">
-          <div className="text-center space-y-4">
-              <h2 className="text-4xl font-display font-bold uppercase">{t.waiting.title}</h2>
-              <p className="text-gray-400">{t.waiting.adminArea}</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Admin Create */}
-              <div className="bg-panel border border-theme rounded-xl p-6 space-y-4">
-                  <h3 className="text-xl font-bold flex items-center gap-2"><ShieldCheck className="text-primary"/> {t.waiting.adminArea}</h3>
-                  <div className="space-y-3">
-                      <input value={wlAdminName} onChange={e => setWlAdminName(e.target.value)} placeholder={t.waiting.yourName} className="w-full bg-black border border-theme rounded p-3" />
-                      <input value={wlTrainingName} onChange={e => setWlTrainingName(e.target.value)} placeholder={t.waiting.trainingName} className="w-full bg-black border border-theme rounded p-3" />
-                      <input value={wlPin} onChange={e => setWlPin(e.target.value)} placeholder={t.waiting.pin} className="w-full bg-black border border-theme rounded p-3" type="password" />
-                      <Button onClick={createWaitingTraining} className="w-full">{t.waiting.create}</Button>
-                  </div>
-              </div>
-
-              {/* User Request */}
-              <div className="bg-panel border border-theme rounded-xl p-6 space-y-4">
-                   <h3 className="text-xl font-bold flex items-center gap-2"><UserPlus className="text-blue-500"/> {t.waiting.requestTitle}</h3>
-                   <div className="space-y-3">
-                       <select className="w-full bg-black border border-theme rounded p-3 text-gray-400">
-                           <option>{t.waiting.selectTraining}</option>
-                           {openTrainings.map(tr => (
-                               <option key={tr.id} value={tr.id}>{tr.trainingName} (by {tr.adminName})</option>
-                           ))}
-                       </select>
-                       <input placeholder={t.waiting.yourTeam} className="w-full bg-black border border-theme rounded p-3" />
-                       <Button className="w-full" variant="secondary">{t.waiting.sendRequest}</Button>
-                   </div>
-              </div>
-          </div>
-
-          {/* List of Open Trainings (Active) */}
-          <div className="space-y-4">
-              <h3 className="font-bold text-lg text-gray-400 uppercase tracking-widest">{t.waiting.queue}</h3>
-              {openTrainings.length === 0 && <div className="text-center p-8 bg-panel border border-theme rounded-xl text-gray-500">Nenhuma lista ativa.</div>}
-              {openTrainings.map(tr => (
-                  <div key={tr.id} className="bg-panel border border-theme rounded-xl p-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                      <div>
-                          <h4 className="font-bold text-xl">{tr.trainingName}</h4>
-                          <div className="text-sm text-gray-500">Admin: <span className="text-white">{tr.adminName}</span> • {new Date(tr.createdAt).toLocaleDateString()}</div>
-                      </div>
-                      <div className="flex gap-3">
-                          <Button size="sm" variant="secondary" onClick={() => {
-                              if(prompt('Enter PIN') === tr.adminPin) {
-                                  // Logic to generate training from requests
-                                  alert('Feature in progress: Generate Training from Queue');
-                              } else {
-                                  alert('Wrong PIN');
-                              }
-                          }}>{t.waiting.generate}</Button>
-                          <button onClick={() => {
-                               if(prompt('Enter PIN to delete') === tr.adminPin) {
-                                  const updated = openTrainings.filter(x => x.id !== tr.id);
-                                  setOpenTrainings(updated);
-                                  localStorage.setItem('jhantraining_waiting_list', JSON.stringify(updated));
-                               }
-                          }} className="p-2 text-red-500 hover:bg-red-500/10 rounded"><Trash2/></button>
-                      </div>
+                      <h3 className="font-bold text-xl">{item.title}</h3>
+                      <p className="text-sm text-gray-500">{item.desc}</p>
                   </div>
               ))}
           </div>
+
+          <Button onClick={() => { setVsStep('CONFIG'); setVsConfigStep(0); }} size="lg" className="px-12 bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-900/50">
+              CONFIGURAR PARTIDA <ArrowRight size={20}/>
+          </Button>
       </div>
   );
 
-  const renderPublicHub = () => (
-      <div className="w-full max-w-4xl mx-auto space-y-8 animate-fade-in pb-20">
-          <div className="text-center space-y-4">
-              <h2 className="text-4xl font-display font-bold uppercase">{t.hub.title}</h2>
-              <p className="text-gray-400">{t.hub.desc}</p>
+  const renderVS_Config = () => (
+      <div className="max-w-4xl mx-auto space-y-8 animate-fade-in pb-20">
+          <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                  <h2 className="text-3xl font-display font-bold">Configuração da Série</h2>
+              </div>
+              <button onClick={() => setIsHelpOpen(true)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                  <HelpCircle className="text-gray-400 hover:text-white" size={24}/>
+              </button>
           </div>
 
-          {savedTrainings.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-12 bg-panel border border-theme rounded-xl text-center space-y-4">
-                  <Save size={48} className="text-gray-600"/>
-                  <h3 className="text-xl font-bold">{t.hub.empty}</h3>
-                  <p className="text-gray-500 max-w-md">{t.hub.emptyDesc}</p>
+          {/* Stepper for VS Config */}
+          <div className="flex justify-between items-center mb-8 relative">
+              <div className="absolute top-1/2 left-0 w-full h-0.5 bg-theme -z-10" />
+              {['Times', 'Modo', 'Formato', 'Mapas'].map((stepName, idx) => (
+                  <div key={idx} className={`bg-background px-2 flex flex-col items-center gap-2 ${idx === vsConfigStep ? 'opacity-100' : 'opacity-50'}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${idx <= vsConfigStep ? 'bg-red-500 border-red-500 text-white' : 'bg-panel border-theme text-muted'}`}>
+                          {idx + 1}
+                      </div>
+                      <span className="text-[10px] font-bold uppercase">{stepName}</span>
+                  </div>
+              ))}
+          </div>
+
+          {/* Step 0: Teams */}
+          {vsConfigStep === 0 && (
+              <div className="bg-panel border border-theme rounded-xl p-8 space-y-6 animate-fade-in">
+                  <h3 className="font-bold text-xl flex items-center gap-2"><Users className="text-red-500"/> Definir Times</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-500 uppercase">Time A</label>
+                          <input value={teamAName} onChange={e => setTeamAName(e.target.value)} className="w-full bg-black border border-theme rounded p-4 text-center font-bold text-yellow-500 text-lg" placeholder="Nome Time A" />
+                      </div>
+                      <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-500 uppercase">Time B</label>
+                          <input value={teamBName} onChange={e => setTeamBName(e.target.value)} className="w-full bg-black border border-theme rounded p-4 text-center font-bold text-blue-500 text-lg" placeholder="Nome Time B" />
+                      </div>
+                  </div>
               </div>
-          ) : (
-              <div className="grid grid-cols-1 gap-4">
-                  {savedTrainings.map(session => (
-                      <div key={session.id} className="bg-panel border border-theme rounded-xl p-6 flex flex-col md:flex-row justify-between items-center gap-4 hover:border-primary/50 transition-colors">
-                          <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                  <h3 className="font-bold text-xl">{session.name}</h3>
-                                  <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded border border-primary/20">{new Date(session.date).toLocaleDateString()}</span>
+          )}
+
+          {/* Step 1: Picks & Bans Mode */}
+          {vsConfigStep === 1 && (
+              <div className="bg-panel border border-theme rounded-xl p-8 space-y-6 animate-fade-in">
+                  <h3 className="font-bold text-xl flex items-center gap-2"><Dna className="text-red-500"/> Modo de Picks & Bans</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {[
+                          { id: 'snake', label: 'Snake Draft', desc: 'Alternado (1-2-2-2-1)' },
+                          { id: 'linear', label: 'Linear Draft', desc: 'Alternado Simples (1-1-1-1)' },
+                          { id: 'mirrored', label: 'Mirrored', desc: 'Simultâneo (Bans -> Picks)' }
+                      ].map(m => (
+                          <button 
+                            key={m.id}
+                            onClick={() => setPbMode(m.id as PBMode)}
+                            className={`p-6 rounded-xl border text-left transition-all hover:scale-105 ${pbMode === m.id ? 'bg-red-500/10 border-red-500 text-white' : 'bg-black/20 border-theme text-gray-400 hover:border-gray-500'}`}
+                          >
+                              <div className="font-bold text-lg mb-2">{m.label}</div>
+                              <div className="text-xs opacity-70">{m.desc}</div>
+                          </button>
+                      ))}
+                  </div>
+              </div>
+          )}
+
+          {/* Step 2: MD Format & Rounds */}
+          {vsConfigStep === 2 && (
+              <div className="bg-panel border border-theme rounded-xl p-8 space-y-8 animate-fade-in">
+                  <div className="space-y-4">
+                      <h3 className="font-bold text-xl flex items-center gap-2"><Trophy className="text-yellow-500"/> Formato MD (Melhor De)</h3>
+                      <div className="flex gap-4">
+                          {[1, 3, 5, 7].map(num => (
+                              <button 
+                                key={num}
+                                onClick={() => setMdFormat(num)}
+                                className={`flex-1 p-6 rounded-xl border font-black text-2xl transition-all hover:scale-105 ${mdFormat === num ? 'bg-yellow-500 text-black border-yellow-500 shadow-lg shadow-yellow-500/20' : 'bg-black/20 border-theme text-gray-500 hover:text-white'}`}
+                              >
+                                  MD{num}
+                              </button>
+                          ))}
+                      </div>
+                  </div>
+
+                  <div className="space-y-4 pt-4 border-t border-theme">
+                      <h3 className="font-bold text-xl flex items-center gap-2"><Target className="text-blue-500"/> Formato de Rounds</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                          <button 
+                            onClick={() => setRoundsFormat(13)}
+                            className={`p-6 rounded-xl border text-left transition-all hover:scale-105 ${roundsFormat === 13 ? 'bg-blue-500/10 border-blue-500 text-white' : 'bg-black/20 border-theme text-gray-400'}`}
+                          >
+                              <div className="font-bold text-xl">13 Rounds</div>
+                              <div className="text-xs opacity-70">Vitória com 7 rounds (7x6)</div>
+                          </button>
+                          <button 
+                            onClick={() => setRoundsFormat(11)}
+                            className={`p-6 rounded-xl border text-left transition-all hover:scale-105 ${roundsFormat === 11 ? 'bg-blue-500/10 border-blue-500 text-white' : 'bg-black/20 border-theme text-gray-400'}`}
+                          >
+                              <div className="font-bold text-xl">11 Rounds</div>
+                              <div className="text-xs opacity-70">Vitória com 6 rounds (6x5)</div>
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          )}
+
+          {/* Step 3: Map Sort */}
+          {vsConfigStep === 3 && (
+              <div className="bg-panel border border-theme rounded-xl p-8 space-y-6 animate-fade-in">
+                  <div className="flex justify-between items-center">
+                      <h3 className="font-bold text-xl flex items-center gap-2"><MapIcon className="text-blue-500"/> Sorteio de Mapas</h3>
+                      <select 
+                        value={mapStrategy} 
+                        onChange={(e) => setMapStrategy(e.target.value as MapStrategy)}
+                        className="bg-black border border-theme rounded px-4 py-2 text-sm"
+                      >
+                          <option value="no_repeat">Sem Repetir</option>
+                          <option value="repeat">Com Repetição</option>
+                          <option value="fixed">Mapa Fixo</option>
+                      </select>
+                  </div>
+                  
+                  <Button onClick={handleMapSort4x4} className="w-full h-16 text-lg" variant="secondary" disabled={isVsMapSpinning}>
+                      {isVsMapSpinning ? <RefreshCw className="animate-spin" /> : <Shuffle size={24}/>} 
+                      {isVsMapSpinning ? 'Sorteando...' : 'Sortear Mapas'}
+                  </Button>
+
+                  {vsMaps.length > 0 && (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                          {vsMaps.map((mapId, idx) => (
+                              <div key={idx} className="relative aspect-video rounded-lg overflow-hidden border border-theme group">
+                                  <img src={MAPS.find(m => m.id === mapId)?.image} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity"/>
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                      <span className="bg-black/80 px-3 py-1 rounded text-xs font-bold uppercase backdrop-blur-md border border-white/10">Partida {idx + 1}</span>
+                                  </div>
+                                  <div className="absolute bottom-0 w-full bg-gradient-to-t from-black to-transparent p-2 text-center text-sm font-bold uppercase">
+                                      {MAPS.find(m => m.id === mapId)?.name}
+                                  </div>
                               </div>
-                              <div className="flex gap-4 text-sm text-gray-400">
-                                  <span>{session.teamsCount} Times</span>
-                                  <span>{session.matchesCount} Quedas</span>
+                          ))}
+                      </div>
+                  )}
+              </div>
+          )}
+
+          {/* Navigation Buttons */}
+          <div className="flex justify-between pt-4">
+              <Button 
+                  onClick={() => setVsConfigStep(prev => prev - 1)} 
+                  disabled={vsConfigStep === 0 || isVsMapSpinning}
+                  variant="secondary"
+              >
+                  Voltar
+              </Button>
+              
+              {vsConfigStep < 3 ? (
+                  <Button onClick={() => setVsConfigStep(prev => prev + 1)} disabled={isVsMapSpinning}>Próximo <ArrowRight size={18}/></Button>
+              ) : (
+                  <Button 
+                    onClick={startSeries} 
+                    size="lg" 
+                    className="bg-red-600 hover:bg-red-700 text-white px-12"
+                    disabled={vsMaps.length === 0 || isVsMapSpinning}
+                  >
+                      INICIAR SÉRIE <ArrowRight/>
+                  </Button>
+              )}
+          </div>
+      </div>
+  );
+
+  const renderVS_Draft = () => {
+      const currentTurn = getTurnInfo(draftState.turnIndex, pbMode, currentMatchIndex);
+      const winCap = roundsFormat === 13 ? 7 : 6;
+      
+      let turnMessage = '';
+      if (draftState.isComplete) turnMessage = "Partida Finalizada";
+      else if (pbMode === 'mirrored') {
+          if (draftState.bansA.length === 0 || draftState.bansB.length === 0) turnMessage = "Fase de Banimentos";
+          else turnMessage = "Fase de Escolhas";
+      } else {
+          if (currentTurn === 'BAN_A') turnMessage = `Banimento: ${teamAName}`;
+          if (currentTurn === 'BAN_B') turnMessage = `Banimento: ${teamBName}`;
+          if (currentTurn === 'PICK_A') turnMessage = `Escolha: ${teamAName}`;
+          if (currentTurn === 'PICK_B') turnMessage = `Escolha: ${teamBName}`;
+      }
+
+      return (
+          <div className="flex flex-col h-[calc(100vh-100px)] animate-fade-in relative">
+              {/* Header Status with Navigation & Scoreboard */}
+              <div className="bg-panel border-b border-theme p-4 flex justify-between items-center shrink-0 shadow-lg z-20">
+                  <div className="flex items-center gap-2">
+                      <Tooltip content="Menu Inicial">
+                          <button onClick={handleHome} className="p-2 bg-gray-800 rounded-lg text-white hover:bg-gray-700 border border-gray-700 hover:border-gray-500 transition-all"><Home size={20}/></button>
+                      </Tooltip>
+                      <Tooltip content="Voltar para Configuração">
+                          <button onClick={() => { if(window.confirm('Sair da partida atual?')) setVsStep('CONFIG'); }} className="p-2 bg-gray-800 rounded-lg text-white hover:bg-gray-700 border border-gray-700 hover:border-gray-500 transition-all"><ChevronLeft size={20}/></button>
+                      </Tooltip>
+                      <div className="h-8 w-[1px] bg-gray-700 mx-2"></div>
+                      <div className="flex flex-col">
+                          <div className="flex items-center gap-2">
+                              <div className="bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase">
+                                  Partida {currentMatchIndex + 1}/{mdFormat}
                               </div>
-                              <div className="mt-2 flex gap-2">
-                                  {session.leaderboardTop3.map((top, i) => (
-                                      <div key={i} className="text-xs font-bold bg-black/40 px-2 py-1 rounded flex items-center gap-1">
-                                          <span className={`w-1.5 h-1.5 rounded-full ${i===0 ? 'bg-yellow-500' : i===1 ? 'bg-gray-300' : 'bg-orange-700'}`}></span>
-                                          {top.name}
+                              <span className="text-xs font-bold text-gray-400 uppercase">{MAPS.find(m => m.id === vsMaps[currentMatchIndex])?.name}</span>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                      <div className="text-right hidden md:block">
+                          <div className="text-[10px] uppercase font-bold text-gray-500">Placar da Série</div>
+                          <div className="text-sm font-bold bg-black/40 px-3 py-1 rounded border border-theme">
+                              <span className="text-yellow-500">{seriesScore.a}</span> x <span className="text-blue-500">{seriesScore.b}</span>
+                          </div>
+                      </div>
+                      <Button size="sm" variant="secondary" onClick={resetMatchDraft} className="text-xs px-3 h-9"><RotateCcw size={14}/> <span className="hidden md:inline">Reiniciar</span></Button>
+                  </div>
+              </div>
+
+              {/* Turn Message Banner */}
+              {!draftState.isComplete && (
+                  <div className="bg-black/50 border-b border-theme py-2 text-center">
+                      <span className="text-sm font-bold uppercase tracking-widest text-white animate-pulse">{turnMessage}</span>
+                  </div>
+              )}
+
+              {/* Draft Review Phase - Before Winner Selection */}
+              {draftState.isComplete && !showWinnerModal ? (
+                  <div className="flex-1 flex flex-col items-center justify-center space-y-8 animate-fade-in">
+                      <div className="text-center">
+                          <h3 className="text-3xl font-black uppercase text-white mb-2">Resumo da Partida</h3>
+                          <p className="text-gray-400">Revise os picks e bans antes de definir o vencedor.</p>
+                      </div>
+
+                      {/* Round Scoreboard */}
+                      <div className="flex items-center gap-8 bg-black/40 p-6 rounded-2xl border border-theme shadow-lg backdrop-blur-md">
+                          <div className="flex items-center gap-3">
+                              <button 
+                                onClick={() => updateMatchScore('a', -1)} 
+                                className="w-10 h-10 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-white transition-all border border-gray-700"
+                              >
+                                  <Minus size={16}/>
+                              </button>
+                              <div className="text-5xl font-black text-yellow-500 tabular-nums w-16 text-center">{matchRoundScore.a}</div>
+                              <button 
+                                onClick={() => updateMatchScore('a', 1)} 
+                                className="w-10 h-10 rounded-full bg-yellow-500/20 hover:bg-yellow-500 flex items-center justify-center text-yellow-500 hover:text-black transition-all border border-yellow-500/50"
+                                disabled={matchRoundScore.a >= winCap}
+                              >
+                                  <Plus size={16}/>
+                              </button>
+                          </div>
+                          
+                          <div className="text-gray-600 font-bold text-3xl">:</div>
+
+                          <div className="flex items-center gap-3">
+                              <div className="text-5xl font-black text-blue-500 tabular-nums w-16 text-center">{matchRoundScore.b}</div>
+                              <button 
+                                onClick={() => updateMatchScore('b', -1)} 
+                                className="w-10 h-10 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-white transition-all border border-gray-700"
+                              >
+                                  <Minus size={16}/>
+                              </button>
+                              <button 
+                                onClick={() => updateMatchScore('b', 1)} 
+                                className="w-10 h-10 rounded-full bg-blue-500/20 hover:bg-blue-500 flex items-center justify-center text-blue-500 hover:text-black transition-all border border-blue-500/50"
+                                disabled={matchRoundScore.b >= winCap}
+                              >
+                                  <Plus size={16}/>
+                              </button>
+                          </div>
+                      </div>
+
+                      {/* Teams Review */}
+                      <div className="flex gap-12 w-full max-w-6xl justify-center">
+                          <div className="bg-panel/50 border border-theme rounded-xl p-8 w-1/2 max-w-md">
+                              <h4 className="text-yellow-500 font-bold text-2xl mb-6 border-b border-white/10 pb-4">{teamAName}</h4>
+                              <div className="space-y-6">
+                                  <div>
+                                      <span className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Banimento</span>
+                                      <div className="flex items-start gap-3">
+                                          {draftState.bansA[0] ? (
+                                              <div className="w-20 aspect-[2/3] relative border border-red-500/50 rounded-lg overflow-hidden group">
+                                                  <img src={CHARACTERS.find(x => x.id === draftState.bansA[0])?.image} className="w-full h-full object-cover object-top grayscale"/>
+                                                  <div className="absolute inset-0 flex items-center justify-center bg-black/40"><Ban className="text-red-500"/></div>
+                                                  <div className="absolute bottom-0 w-full bg-red-900/80 text-[10px] text-center text-white font-bold py-1 uppercase">{CHARACTERS.find(c => c.id === draftState.bansA[0])?.name}</div>
+                                              </div>
+                                          ) : <span className="text-gray-500 italic">Nenhum</span>}
+                                      </div>
+                                  </div>
+                                  <div>
+                                      <span className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Picks</span>
+                                      <div className="grid grid-cols-4 gap-3">
+                                          {draftState.picksA.map(c => (
+                                              <div key={c} className="w-full aspect-[2/3] relative border border-yellow-500/50 rounded-lg overflow-hidden group shadow-lg">
+                                                  <img src={CHARACTERS.find(x => x.id === c)?.image} className="w-full h-full object-cover object-top"/>
+                                                  <div className="absolute bottom-0 w-full bg-black/80 text-[10px] text-center text-yellow-500 font-bold py-1 uppercase">{CHARACTERS.find(x => x.id === c)?.name}</div>
+                                              </div>
+                                          ))}
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div className="flex flex-col justify-center gap-4">
+                              <div className="text-center font-bold text-gray-500 text-xl">VS</div>
+                          </div>
+
+                          <div className="bg-panel/50 border border-theme rounded-xl p-8 w-1/2 max-w-md">
+                              <h4 className="text-blue-500 font-bold text-2xl mb-6 border-b border-white/10 pb-4 text-right">{teamBName}</h4>
+                              <div className="space-y-6">
+                                  <div className="flex flex-col items-end">
+                                      <span className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Banimento</span>
+                                      <div className="flex items-start gap-3">
+                                          {draftState.bansB[0] ? (
+                                              <div className="w-20 aspect-[2/3] relative border border-red-500/50 rounded-lg overflow-hidden group">
+                                                  <img src={CHARACTERS.find(x => x.id === draftState.bansB[0])?.image} className="w-full h-full object-cover object-top grayscale"/>
+                                                  <div className="absolute inset-0 flex items-center justify-center bg-black/40"><Ban className="text-red-500"/></div>
+                                                  <div className="absolute bottom-0 w-full bg-red-900/80 text-[10px] text-center text-white font-bold py-1 uppercase">{CHARACTERS.find(c => c.id === draftState.bansB[0])?.name}</div>
+                                              </div>
+                                          ) : <span className="text-gray-500 italic">Nenhum</span>}
+                                      </div>
+                                  </div>
+                                  <div>
+                                      <span className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2 text-right">Picks</span>
+                                      <div className="grid grid-cols-4 gap-3 justify-end">
+                                          {draftState.picksB.map(c => (
+                                              <div key={c} className="w-full aspect-[2/3] relative border border-blue-500/50 rounded-lg overflow-hidden group shadow-lg">
+                                                  <img src={CHARACTERS.find(x => x.id === c)?.image} className="w-full h-full object-cover object-top"/>
+                                                  <div className="absolute bottom-0 w-full bg-black/80 text-[10px] text-center text-blue-500 font-bold py-1 uppercase">{CHARACTERS.find(x => x.id === c)?.name}</div>
+                                              </div>
+                                          ))}
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+
+                      {/* Timeline */}
+                      <div className="w-full max-w-4xl">
+                          <h4 className="text-center text-xs font-bold text-gray-500 uppercase mb-4">Timeline de Escolhas</h4>
+                          <div className="flex flex-wrap justify-center gap-2">
+                              {draftState.history.map((h, i) => {
+                                  const isA = h.action.includes('_A');
+                                  const isBan = h.action.includes('BAN');
+                                  return (
+                                      <div key={i} className={`px-3 py-1 rounded text-[10px] font-bold uppercase border flex items-center gap-1 ${isA ? 'border-yellow-500 text-yellow-500' : 'border-blue-500 text-blue-500'} ${isBan ? 'bg-red-500/10 !border-red-500 !text-red-500' : ''}`}>
+                                          <span className="text-gray-500 mr-1">{i+1}.</span>
+                                          {isBan && <Ban size={10}/>}
+                                          {CHARACTERS.find(c => c.id === h.charId)?.name}
+                                      </div>
+                                  )
+                              })}
+                          </div>
+                      </div>
+
+                      <div className="pt-8">
+                          <Button size="lg" onClick={() => setShowWinnerModal(true)} className="bg-green-600 hover:bg-green-700 text-white px-12 shadow-lg shadow-green-900/50">
+                              DEFINIR VENCEDOR <CheckCircle size={20}/>
+                          </Button>
+                      </div>
+                  </div>
+              ) : (
+                  <div className="flex flex-1 overflow-hidden relative">
+                      {/* Team A Panel */}
+                      <div 
+                        className="w-64 bg-black/40 border-r border-theme p-4 flex flex-col gap-4 overflow-y-auto"
+                        onDragOver={allowDrop}
+                        onDrop={(e) => handleDrop(e, 'A')}
+                      >
+                          <h3 className="font-black text-xl text-yellow-500 uppercase border-b border-theme pb-2 text-center">{teamAName}</h3>
+                          
+                          <div className="space-y-2">
+                              <div className="text-xs font-bold text-gray-500 uppercase">Banido</div>
+                              <div className="aspect-square bg-gray-900 rounded-lg border border-theme flex items-center justify-center relative overflow-hidden transition-colors duration-300 hover:bg-red-900/20">
+                                  {draftState.bansA[0] ? (
+                                      <>
+                                        <img src={CHARACTERS.find(c => c.id === draftState.bansA[0])?.image} className="w-full h-full object-cover object-top grayscale opacity-50"/>
+                                        <Ban className="absolute text-red-500 w-1/2 h-1/2"/>
+                                      </>
+                                  ) : <span className="text-gray-700 text-xs text-center p-2">Arraste ou Clique para Banir (Se for a vez)</span>}
+                              </div>
+                          </div>
+
+                          <div className="space-y-2">
+                              <div className="text-xs font-bold text-gray-500 uppercase">Picks</div>
+                              <div className="grid grid-cols-1 gap-2">
+                                  {[0,1,2,3].map(i => (
+                                      <div key={i} className="aspect-video bg-yellow-900/10 rounded-lg border border-yellow-900/30 flex items-center justify-center relative overflow-hidden group">
+                                          {draftState.picksA[i] ? (
+                                              <>
+                                                <img src={CHARACTERS.find(c => c.id === draftState.picksA[i])?.image} className="w-full h-full object-cover object-top"/>
+                                                <div className="absolute bottom-0 w-full bg-black/60 text-[10px] text-center font-bold uppercase text-yellow-500">{CHARACTERS.find(c => c.id === draftState.picksA[i])?.name}</div>
+                                              </>
+                                          ) : <span className="text-yellow-900/30 text-xs font-bold">Pick {i+1}</span>}
                                       </div>
                                   ))}
                               </div>
                           </div>
-                          <div className="flex gap-3">
-                              <Button onClick={() => {
-                                  if(window.confirm(t.hub.confirmLoad)) {
-                                      // Load logic would go here (need to parse data string back to state)
-                                      // Since I don't have the full load logic in this file, I'll just alert or leave placeholder
-                                      alert("Load feature implementation required");
-                                  }
-                              }} variant="primary" size="sm">{t.hub.load}</Button>
-                              <Button onClick={() => {
-                                  if(window.confirm('Delete?')) {
-                                      const updated = savedTrainings.filter(s => s.id !== session.id);
-                                      setSavedTrainings(updated);
-                                      localStorage.setItem('jhantraining_hub_data', JSON.stringify(updated));
-                                  }
-                              }} variant="danger" size="sm"><Trash2 size={16}/></Button>
+                      </div>
+
+                      {/* Character Grid */}
+                      <div className="flex-1 bg-[#0a0a0a] p-6 overflow-y-auto custom-scrollbar">
+                          <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-7 gap-4">
+                              {CHARACTERS.map(char => {
+                                  const isBanned = draftState.bansA.includes(char.id) || draftState.bansB.includes(char.id);
+                                  const isPickedA = draftState.picksA.includes(char.id);
+                                  const isPickedB = draftState.picksB.includes(char.id);
+                                  const isDisabled = isBanned || isPickedA || isPickedB;
+
+                                  return (
+                                      <div 
+                                        key={char.id} 
+                                        draggable={!isDisabled}
+                                        onDragStart={(e) => handleDragStart(e, char.id)}
+                                        onClick={() => !isDisabled && handleDraftClick(char.id)}
+                                        className={`
+                                            relative aspect-[2/3] rounded-lg border-2 overflow-hidden transition-all duration-200
+                                            ${isPickedA ? 'border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.4)] opacity-100 z-10 scale-105' : ''}
+                                            ${isPickedB ? 'border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.4)] opacity-100 z-10 scale-105' : ''}
+                                            ${isBanned ? 'border-gray-800 grayscale opacity-40 cursor-not-allowed' : ''}
+                                            ${!isDisabled ? 'border-theme hover:border-gray-400 hover:scale-105 cursor-pointer cursor-grab active:cursor-grabbing opacity-80 hover:opacity-100' : ''}
+                                        `}
+                                      >
+                                          <img src={char.image} className="w-full h-full object-cover object-top"/>
+                                          <div className="absolute bottom-0 w-full bg-gradient-to-t from-black via-black/80 to-transparent p-2 pt-6">
+                                              <div className="text-xs font-bold text-center uppercase truncate text-white tracking-widest">{char.name}</div>
+                                          </div>
+                                          {isBanned && <div className="absolute inset-0 flex items-center justify-center bg-black/60"><Ban className="text-red-500 w-12 h-12"/></div>}
+                                          {isPickedA && <div className="absolute top-2 right-2 w-3 h-3 rounded-full bg-yellow-500 shadow-[0_0_8px_currentColor]"></div>}
+                                          {isPickedB && <div className="absolute top-2 right-2 w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_8px_currentColor]"></div>}
+                                      </div>
+                                  );
+                              })}
                           </div>
                       </div>
-                  ))}
+
+                      {/* Team B Panel */}
+                      <div 
+                        className="w-64 bg-black/40 border-l border-theme p-4 flex flex-col gap-4 overflow-y-auto"
+                        onDragOver={allowDrop}
+                        onDrop={(e) => handleDrop(e, 'B')}
+                      >
+                          <h3 className="font-black text-xl text-blue-500 uppercase border-b border-theme pb-2 text-center">{teamBName}</h3>
+                          
+                          <div className="space-y-2">
+                              <div className="text-xs font-bold text-gray-500 uppercase">Banido</div>
+                              <div className="aspect-square bg-gray-900 rounded-lg border border-theme flex items-center justify-center relative overflow-hidden transition-colors duration-300 hover:bg-red-900/20">
+                                  {draftState.bansB[0] ? (
+                                      <>
+                                        <img src={CHARACTERS.find(c => c.id === draftState.bansB[0])?.image} className="w-full h-full object-cover object-top grayscale opacity-50"/>
+                                        <Ban className="absolute text-red-500 w-1/2 h-1/2"/>
+                                      </>
+                                  ) : <span className="text-gray-700 text-xs text-center p-2">Arraste ou Clique para Banir (Se for a vez)</span>}
+                              </div>
+                          </div>
+
+                          <div className="space-y-2">
+                              <div className="text-xs font-bold text-gray-500 uppercase">Picks</div>
+                              <div className="grid grid-cols-1 gap-2">
+                                  {[0,1,2,3].map(i => (
+                                      <div key={i} className="aspect-video bg-blue-900/10 rounded-lg border border-blue-900/30 flex items-center justify-center relative overflow-hidden group">
+                                          {draftState.picksB[i] ? (
+                                              <>
+                                                <img src={CHARACTERS.find(c => c.id === draftState.picksB[i])?.image} className="w-full h-full object-cover object-top"/>
+                                                <div className="absolute bottom-0 w-full bg-black/60 text-[10px] text-center font-bold uppercase text-blue-400">{CHARACTERS.find(c => c.id === draftState.picksB[i])?.name}</div>
+                                              </>
+                                          ) : <span className="text-blue-900/30 text-xs font-bold">Pick {i+1}</span>}
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              )}
+
+              {/* Match Winner Selection Modal */}
+              {draftState.isComplete && showWinnerModal && (
+                  <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center animate-fade-in">
+                      <div className="bg-panel border border-theme rounded-2xl p-8 max-w-lg w-full text-center space-y-6 shadow-2xl">
+                          <h3 className="text-3xl font-black uppercase text-white">Quem venceu a partida?</h3>
+                          <div className="text-gray-400 text-sm">Selecione o vencedor da <span className="text-white font-bold">Partida {currentMatchIndex + 1}</span> no mapa <span className="text-white font-bold">{MAPS.find(m => m.id === vsMaps[currentMatchIndex])?.name}</span></div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                              <button 
+                                onClick={() => handleMatchEnd('A')}
+                                className="p-6 bg-yellow-500/10 border border-yellow-500 hover:bg-yellow-500 hover:text-black text-yellow-500 font-black text-xl rounded-xl transition-all uppercase"
+                              >
+                                  {teamAName}
+                              </button>
+                              <button 
+                                onClick={() => handleMatchEnd('B')}
+                                className="p-6 bg-blue-500/10 border border-blue-500 hover:bg-blue-500 hover:text-black text-blue-500 font-black text-xl rounded-xl transition-all uppercase"
+                              >
+                                  {teamBName}
+                              </button>
+                          </div>
+                          
+                          <button onClick={() => setShowWinnerModal(false)} className="text-gray-500 text-sm hover:text-white underline">Voltar para revisão</button>
+                      </div>
+                  </div>
+              )}
+          </div>
+      );
+  };
+
+  const renderVS_History = () => {
+      const handleDownload = async () => {
+          if (historyRef.current) {
+              const dataUrl = await htmlToImage.toPng(historyRef.current);
+              const link = document.createElement('a');
+              link.download = `serie-4x4-${Date.now()}.png`;
+              link.href = dataUrl;
+              link.click();
+          }
+      };
+
+      const winner = seriesScore.a > seriesScore.b ? teamAName : teamBName;
+      const winnerColor = seriesScore.a > seriesScore.b ? 'text-yellow-500' : 'text-blue-500';
+
+      return (
+          <div className="max-w-5xl mx-auto space-y-8 animate-fade-in pb-20">
+              <div className="flex justify-between items-center">
+                  <h2 className="text-3xl font-display font-bold">Resultado da Série</h2>
+                  <div className="flex gap-2">
+                      <Button onClick={() => setVsStep('HOME')} variant="secondary">Novo 4x4</Button>
+                      <Button onClick={handleDownload}><Download size={18}/> Salvar PNG</Button>
+                  </div>
               </div>
-          )}
-          <p className="text-center text-xs text-gray-500 flex items-center justify-center gap-2">
-              <Info size={12}/> {t.hub.info}
-          </p>
-      </div>
-  );
+
+              <div ref={historyRef} className="bg-[#0a0a0a] p-8 rounded-2xl border border-theme space-y-8">
+                  {/* Series Header */}
+                  <div className="text-center space-y-4 border-b border-theme pb-8">
+                      <div className="inline-block px-4 py-1 rounded-full bg-green-500/20 text-green-500 border border-green-500/50 text-xs font-bold uppercase tracking-widest mb-2">
+                          Série Finalizada
+                      </div>
+                      <div className="flex justify-center items-center gap-12 text-6xl font-black uppercase">
+                          <div className="flex flex-col items-center gap-2">
+                              <span className="text-yellow-500">{teamAName}</span>
+                              <span className="text-4xl text-gray-500">{seriesScore.a}</span>
+                          </div>
+                          <span className="text-gray-700 text-4xl">VS</span>
+                          <div className="flex flex-col items-center gap-2">
+                              <span className="text-blue-500">{teamBName}</span>
+                              <span className="text-4xl text-gray-500">{seriesScore.b}</span>
+                          </div>
+                      </div>
+                      <div className={`text-2xl font-bold uppercase tracking-widest ${winnerColor}`}>
+                          Vencedor: {winner}
+                      </div>
+                  </div>
+
+                  {/* Match List */}
+                  <div className="space-y-6">
+                      <h3 className="font-bold text-xl text-white uppercase tracking-widest text-center">Detalhes das Partidas</h3>
+                      {seriesHistory.map((match, idx) => (
+                          <div key={idx} className="bg-panel border border-theme rounded-xl p-6 relative overflow-hidden">
+                              <div className="absolute top-0 left-0 w-1 h-full" style={{backgroundColor: match.winner === 'A' ? '#eab308' : '#3b82f6'}}></div>
+                              
+                              <div className="flex justify-between items-center mb-4 border-b border-white/5 pb-4">
+                                  <div className="font-bold text-lg uppercase flex items-center gap-2">
+                                      <span className="text-gray-500">#{idx+1}</span>
+                                      {MAPS.find(m => m.id === match.mapId)?.name}
+                                  </div>
+                                  <div className={`text-sm font-bold uppercase px-3 py-1 rounded bg-black/40 border ${match.winner === 'A' ? 'border-yellow-500 text-yellow-500' : 'border-blue-500 text-blue-500'}`}>
+                                      Vencedor: {match.winner === 'A' ? teamAName : teamBName}
+                                  </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-8">
+                                  {/* Team A Picks */}
+                                  <div>
+                                      <div className="text-[10px] font-bold text-gray-500 uppercase mb-2 flex justify-between items-end">
+                                          <span>{teamAName} Picks</span>
+                                          {match.draftState.bansA.length > 0 && (
+                                              <div className="flex items-center gap-2 text-red-500">
+                                                  <span className="text-[10px] uppercase font-bold">Ban: {CHARACTERS.find(c => c.id === match.draftState.bansA[0])?.name}</span>
+                                                  <div className="w-8 h-8 rounded border border-red-500/50 overflow-hidden relative">
+                                                      <img src={CHARACTERS.find(c => c.id === match.draftState.bansA[0])?.image} className="w-full h-full object-cover object-top grayscale opacity-60"/>
+                                                      <Ban size={16} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-red-500"/>
+                                                  </div>
+                                              </div>
+                                          )}
+                                      </div>
+                                      <div className="flex gap-2">
+                                          {match.draftState.picksA.map(c => (
+                                              <div key={c} className="w-14 aspect-[2/3] relative border border-yellow-500/50 rounded overflow-hidden group">
+                                                  <img src={CHARACTERS.find(x => x.id === c)?.image} className="w-full h-full object-cover object-top"/>
+                                                  <div className="absolute bottom-0 w-full bg-black/70 text-[8px] text-center text-white font-bold py-0.5">{CHARACTERS.find(x => x.id === c)?.name}</div>
+                                              </div>
+                                          ))}
+                                      </div>
+                                  </div>
+
+                                  {/* Team B Picks */}
+                                  <div className="text-right">
+                                      <div className="text-[10px] font-bold text-gray-500 uppercase mb-2 flex justify-between items-end">
+                                          {match.draftState.bansB.length > 0 && (
+                                              <div className="flex items-center gap-2 text-red-500">
+                                                  <div className="w-8 h-8 rounded border border-red-500/50 overflow-hidden relative">
+                                                      <img src={CHARACTERS.find(c => c.id === match.draftState.bansB[0])?.image} className="w-full h-full object-cover object-top grayscale opacity-60"/>
+                                                      <Ban size={16} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-red-500"/>
+                                                  </div>
+                                                  <span className="text-[10px] uppercase font-bold">Ban: {CHARACTERS.find(c => c.id === match.draftState.bansB[0])?.name}</span>
+                                              </div>
+                                          )}
+                                          <span>{teamBName} Picks</span>
+                                      </div>
+                                      <div className="flex gap-2 justify-end">
+                                          {match.draftState.picksB.map(c => (
+                                              <div key={c} className="w-14 aspect-[2/3] relative border border-blue-500/50 rounded overflow-hidden group">
+                                                  <img src={CHARACTERS.find(x => x.id === c)?.image} className="w-full h-full object-cover object-top"/>
+                                                  <div className="absolute bottom-0 w-full bg-black/70 text-[8px] text-center text-white font-bold py-0.5">{CHARACTERS.find(x => x.id === c)?.name}</div>
+                                              </div>
+                                          ))}
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+          </div>
+      );
+  };
 
   return (
-    <div className={`min-h-screen bg-background text-main font-sans selection:bg-primary selection:text-black`}>
+    <ErrorBoundary>
+      <div className={`min-h-screen bg-[#0a0a0a] text-white font-sans ${isDarkMode ? '' : 'light-mode'} flex flex-col`}>
+        <div className="flex-1">
+            {step === Step.LANDING && renderLanding()}
+            {step === Step.MODE_4X4 && (
+                <>
+                {vsStep === 'HOME' && renderVS_Home()}
+                {vsStep === 'CONFIG' && renderVS_Config()}
+                {vsStep === 'DRAFT' && renderVS_Draft()}
+                {vsStep === 'HISTORY' && renderVS_History()}
+                </>
+            )}
+            
+            {/* Placeholder logic for steps missing in the provided code snippet */}
+            {![Step.LANDING, Step.MODE_4X4].includes(step) && (
+                <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center animate-fade-in">
+                    <AlertTriangle size={48} className="text-yellow-500 mb-4"/>
+                    <h2 className="text-2xl font-bold text-white">Funcionalidade em Desenvolvimento</h2>
+                    <p className="text-gray-400 mb-6">Esta tela ({step}) ainda não foi implementada neste trecho de código.</p>
+                    <Button onClick={handleBack}>Voltar</Button>
+                </div>
+            )}
+        </div>
+
+        <footer className="py-6 text-center text-gray-600 text-xs font-bold uppercase tracking-widest border-t border-theme bg-panel/30">
+            Desenvolvido por Jhan Medeiros
+        </footer>
+
         {renderHelpModal()}
-        {step === Step.HOME ? renderHome() : (
-            <div className="flex flex-col min-h-screen">
-                <header className="h-16 border-b border-theme bg-panel/50 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-50">
-                     <div className="flex items-center gap-4">
-                         <button onClick={handleBack} className="p-2 hover:bg-white/5 rounded-full"><ChevronLeft/></button>
-                         <h1 className="font-bold flex items-center gap-2"><Zap className="text-primary"/> FF TRAINING</h1>
-                     </div>
-                     <div className="flex gap-2">
-                        <button onClick={() => setIsHelpOpen(true)} className="p-2 hover:text-white text-gray-400"><HelpCircle size={20}/></button>
-                        <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 hover:text-white text-gray-400">{isDarkMode ? <Sun size={20}/> : <Moon size={20}/>}</button>
-                        <button onClick={handleHome} className="p-2 hover:text-red-500 text-gray-400"><Home size={20}/></button>
-                     </div>
-                </header>
-                <main className="flex-1 p-6">
-                    {![Step.WAITING_LIST, Step.PUBLIC_HUB, Step.VIEWER].includes(step) && renderStepper()}
-                    <ErrorBoundary>
-                        {step === Step.WAITING_LIST && renderWaitingList()}
-                        {step === Step.PUBLIC_HUB && renderPublicHub()}
-                        {step === Step.MODE_SELECT && renderModeSelect()}
-                        {step === Step.TEAM_REGISTER && renderTeamRegister()}
-                        {step === Step.MAP_SORT && renderMapSort()}
-                        {step === Step.STRATEGY && renderStrategy()}
-                        {step === Step.SCORING && renderScoring()}
-                        {step === Step.DASHBOARD && renderDashboard()}
-                    </ErrorBoundary>
-                </main>
-            </div>
-        )}
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 };
 

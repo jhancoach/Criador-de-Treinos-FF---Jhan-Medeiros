@@ -79,6 +79,8 @@ export interface OpenTraining {
 export type Position = { x: number; y: number }; // Percentages
 
 export enum Step {
+  LANDING = 'LANDING',
+  MODE_4X4 = 'MODE_4X4',
   HOME = 'HOME',
   WAITING_LIST = 'WAITING_LIST',
   PUBLIC_HUB = 'PUBLIC_HUB',
@@ -122,4 +124,27 @@ export interface PlayerAnalysis {
     lastEventTime: number;
     mvpScore: number;
     timeAlive: number;
+}
+
+// 4x4 Specific Types
+export type VS_Step = 'HOME' | 'CONFIG' | 'DRAFT' | 'HISTORY';
+export type PBMode = 'snake' | 'linear' | 'mirrored';
+export type MapStrategy = 'no_repeat' | 'repeat' | 'fixed';
+export type TurnAction = 'BAN_A' | 'BAN_B' | 'PICK_A' | 'PICK_B';
+
+export interface DraftState {
+    bansA: string[];
+    bansB: string[];
+    picksA: string[];
+    picksB: string[];
+    turnIndex: number;
+    history: { action: TurnAction; charId: string }[];
+    isComplete: boolean;
+}
+
+export interface SeriesMatchResult {
+    matchIndex: number;
+    mapId: string;
+    winner: 'A' | 'B';
+    draftState: DraftState;
 }
