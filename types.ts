@@ -129,7 +129,7 @@ export interface PlayerAnalysis {
 // 4x4 Specific Types
 export type VS_Step = 'HOME' | 'CONFIG' | 'DRAFT' | 'HISTORY';
 export type PBMode = 'snake' | 'linear' | 'mirrored';
-export type MapStrategy = 'no_repeat' | 'repeat' | 'fixed';
+export type MapStrategy = 'no_repeat' | 'repeat' | 'fixed' | 'manual';
 export type TurnAction = 'BAN_A' | 'BAN_B' | 'PICK_A' | 'PICK_B';
 
 export interface DraftState {
@@ -139,6 +139,7 @@ export interface DraftState {
     picksB: string[];
     turnIndex: number;
     history: { action: TurnAction; charId: string }[];
+    redoStack: { action: TurnAction; charId: string }[];
     isComplete: boolean;
 }
 
@@ -146,5 +147,6 @@ export interface SeriesMatchResult {
     matchIndex: number;
     mapId: string;
     winner: 'A' | 'B';
+    score: { a: number, b: number }; // Added Score
     draftState: DraftState;
 }
