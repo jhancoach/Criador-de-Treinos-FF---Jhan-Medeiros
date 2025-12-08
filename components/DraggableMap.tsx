@@ -162,22 +162,20 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
 
       <div 
         ref={scrollContainerRef}
-        className={`flex-1 overflow-auto border border-gray-700 rounded-lg bg-gray-900 relative min-h-[300px] no-scrollbar ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+        className={`flex-1 overflow-auto border border-gray-700 rounded-lg bg-gray-900 relative min-h-[300px] no-scrollbar ${isPanning ? 'cursor-grabbing' : 'cursor-grab'} flex items-center justify-center`}
         onMouseDown={handlePanStart}
         onTouchStart={handlePanStart}
         onWheel={handleWheel}
       >
         <div 
             ref={containerRef}
-            className="relative origin-top-left transition-all duration-200 ease-out select-none"
+            className="relative origin-top-left transition-all duration-200 ease-out select-none shadow-2xl"
             style={{ 
               width: `${zoomLevel * 100}%`,
-              height: `${zoomLevel * 100}%`,
-              minHeight: '100%',
+              aspectRatio: '1 / 1', // Enforce square aspect ratio
               backgroundImage: `url(${image})`, 
-              backgroundSize: 'cover', 
+              backgroundSize: '100% 100%', // Stretch to fill exactly
               backgroundPosition: 'center',
-              aspectRatio: '1 / 1'
             }}
         >
             {teams.map((team) => {
@@ -200,19 +198,19 @@ export const DraggableMap: React.FC<DraggableMapProps> = ({
                 {team.logo ? (
                     <div className="relative flex flex-col items-center">
                         <div 
-                            className="w-10 h-10 md:w-14 md:h-14 rounded-full border-2 md:border-4 shadow-lg overflow-hidden bg-black relative transition-shadow hover:shadow-[0_0_20px_rgba(255,255,255,0.5)]"
+                            className="w-8 h-8 md:w-12 md:h-12 rounded-full border-2 md:border-3 shadow-lg overflow-hidden bg-black relative transition-shadow hover:shadow-[0_0_20px_rgba(255,255,255,0.5)]"
                             style={{ borderColor: teamColor }}
                         >
                             <img src={team.logo} alt={team.name} className="w-full h-full object-cover" />
                             {isDragging && <div className="absolute inset-0 bg-white/20" />}
                         </div>
                         <span 
-                            className="mt-1 px-2 py-0.5 bg-black/90 text-white text-[10px] md:text-xs font-bold rounded border border-gray-600 truncate max-w-[100px] pointer-events-none"
+                            className="mt-1 px-1.5 py-0.5 bg-black/90 text-white text-[8px] md:text-[10px] font-bold rounded border border-gray-600 truncate max-w-[80px] pointer-events-none"
                             style={{ textShadow: '0 1px 2px black' }}
                         >
                             {team.name}
                         </span>
-                        <div className="w-0.5 h-4 bg-white/50 absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full pointer-events-none"></div>
+                        <div className="w-0.5 h-3 bg-white/50 absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full pointer-events-none"></div>
                     </div>
                 ) : (
                     <div className="relative">
